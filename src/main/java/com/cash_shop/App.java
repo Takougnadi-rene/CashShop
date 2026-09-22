@@ -1,9 +1,9 @@
 package com.cash_shop;
 import java.util.ArrayList;
 
-import com.cash_shop.model.Aisle;
-import com.cash_shop.model.Product;
-import com.cash_shop.service.AisleService;
+import com.cash_shop.aisle.Aisle;
+import com.cash_shop.aisle.AisleService;
+import com.cash_shop.product.Product;
 
 public class App 
 {
@@ -30,5 +30,11 @@ public class App
         System.out.println("Products in aisle " + aisle1.getAisleName() + ":");
         aisleService.displayProductsInAisle(aisle1);
 
+    }
+    //invokelater ConnectionUI() -
+    {
+        javax.swing.SwingUtilities.invokeLater(() ->
+            new com.cash_shop.user.UserView().setVisible(true));
+            
     }
 }
