@@ -6,12 +6,14 @@ import com.cash_shop.product.Product;
 public class Aisle {
     private int aisleCode;
     private String aisleName;
+    private String category;
     private String aisleChief;
     private ArrayList<Product> productsList;
 
-    public Aisle(int aisleCode, String aisleName, String aisleChief) {
+    public Aisle(int aisleCode, String aisleName, String category, String aisleChief) {
         this.aisleCode = aisleCode;
         this.aisleName = aisleName;
+        this.category = category;
         this.aisleChief = aisleChief;
         this.productsList = new ArrayList<>();
     }
@@ -41,6 +43,11 @@ public class Aisle {
     public void setProductsList(ArrayList<Product> productsList) {
         this.productsList = productsList;
     }
-
+    public String getCategory() {
+        return category;
+    }
+    public void setCategory(String category) {
+        this.category = category;
+    }
 
 }

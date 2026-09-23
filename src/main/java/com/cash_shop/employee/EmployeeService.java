@@ -1,5 +1,15 @@
 package com.cash_shop.employee;
 public class EmployeeService {
+
+    public void addEmployee(Employee employee) {
+        //Employee emp = new Employee();
+        System.out.println("Employee added: " + employee.getFirstName() + " " + employee.getLastName());
+    }
+
+    public void removeEmployee(Employee employee) {
+        System.out.println("Employee removed: " + employee.getFirstName() + " " + employee.getLastName());
+    }
+
     public void openCashRegister(Employee employee) {
         if (employee.getRole() == Employee.Role.CASHIER) {
             System.out.println("Cash register opened by " + employee.getFirstName() + " " + employee.getLastName());

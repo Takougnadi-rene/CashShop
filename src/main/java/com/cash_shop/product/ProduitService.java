@@ -6,6 +6,10 @@ public class ProduitService {
     public void addProduct(Product product) {
         this.product = product;
     }
+    public void addFreshProduct(){
+
+    }
+    
     public void removeProduct() {
         this.product = null;
     }

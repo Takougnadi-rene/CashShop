@@ -9,6 +9,7 @@ public class Customer {
     private String lastName;
     private String email;
     private String phoneNumber;
+    private double totalSpent;
     private int loyaltyPoints;
     private ArrayList<Purchase> purchaseHistory;
 
@@ -17,6 +18,9 @@ public class Customer {
         this.lastName = lastName;
         this.email = email;
         this.phoneNumber = phoneNumber;
+        this.totalSpent = 0.0;
+        this.loyaltyPoints = 0;
+        this.purchaseHistory = new ArrayList<>();
     }
 
     public String getFirstName() {
@@ -50,16 +54,38 @@ public class Customer {
     public void setPhoneNumber(String phoneNumber) {
         this.phoneNumber = phoneNumber;
     }
+
+    public double getTotalSpent() {
+        return totalSpent;
+    }
+
+    public void setTotalSpent(double totalSpent) {
+        this.totalSpent = totalSpent;
+    }
+
     public int getLoyaltyPoints() {
         return loyaltyPoints;
     }
+
     public void setLoyaltyPoints(int loyaltyPoints) {
         this.loyaltyPoints = loyaltyPoints;
     }
+
     public ArrayList<Purchase> getPurchaseHistory() {
         return purchaseHistory;
     }
+
     public void setPurchaseHistory(ArrayList<Purchase> purchaseHistory) {
-        this.purchaseHistory = purchaseHistory;
+        this.purchaseHistory = purchaseHistory != null ? purchaseHistory : new ArrayList<>();
+    }
+
+    public void addPurchase(Purchase purchase) {
+        if (purchase != null) {
+            purchaseHistory.add(purchase);
+        }
+    }
+
+    public String getFullName() {
+        return firstName + " " + lastName;
     }
 }

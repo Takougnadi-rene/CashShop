@@ -2,6 +2,7 @@ package com.cash_shop.aisle;
 import com.cash_shop.product.Product;
 
 public class AisleService {
+    
     public void addProductToAisle(Aisle aisle, Product product) {
         aisle.getProductsList().add(product);
     }
