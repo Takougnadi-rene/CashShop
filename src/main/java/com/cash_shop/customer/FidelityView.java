@@ -81,4 +81,11 @@ public class FidelityView extends JFrame {
             }
         });
     }
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            int customerId = Integer.parseInt(args[0]);
+            FidelityView view = new FidelityView(customerId);
+            view.setVisible(true);
+        });
+    }
 }
