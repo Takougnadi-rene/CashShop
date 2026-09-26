@@ -23,16 +23,16 @@ import com.cash_shop.common.StyleManager;
 public class SupplierView extends JFrame {
 
     private final List<Supplier> suppliers = new ArrayList<>();
-    private final JTextField tfCode = new JTextField();
-    private final JTextField tfName = new JTextField();
-    private final JTextField tfPhone = new JTextField();
-    private final JTextField tfAddress = new JTextField();
+    private final JTextField tfCode = StyleManager.createField();
+    private final JTextField tfName = StyleManager.createField();
+    private final JTextField tfPhone = StyleManager.createField();
+    private final JTextField tfAddress = StyleManager.createField();
     private JTable table;
     private DefaultTableModel tableModel;
 
     public SupplierView() {
         initDemoSuppliers();
-        setTitle("Gestion des Fournisseurs");
+        setTitle("Supplier Management");
         setSize(820, 500);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -54,7 +54,7 @@ public class SupplierView extends JFrame {
 
         JPanel header = new JPanel(new FlowLayout(FlowLayout.CENTER));
         header.setBackground(StyleManager.BG_DARK);
-        header.add(StyleManager.createLabel("=== FOURNISSEURS ===", StyleManager.ACCENT_GOLD, StyleManager.FONT_TITLE));
+        header.add(StyleManager.createLabel("SUPPLIERS", StyleManager.ACCENT_GOLD, StyleManager.FONT_TITLE));
 
         JPanel formPanel = StyleManager.createCard();
         formPanel.setLayout(new GridBagLayout());
@@ -64,33 +64,33 @@ public class SupplierView extends JFrame {
 
         gbc.gridx = 0;
         gbc.gridy = 0;
-        formPanel.add(StyleManager.createLabel("Code :", StyleManager.TEXT_MUTED, StyleManager.FONT_SMALL), gbc);
+        formPanel.add(StyleManager.createLabel("Code:", StyleManager.TEXT_MUTED, StyleManager.FONT_SMALL), gbc);
         gbc.gridx = 1;
         formPanel.add(tfCode, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 1;
-        formPanel.add(StyleManager.createLabel("Nom :", StyleManager.TEXT_MUTED, StyleManager.FONT_SMALL), gbc);
+        formPanel.add(StyleManager.createLabel("Name:", StyleManager.TEXT_MUTED, StyleManager.FONT_SMALL), gbc);
         gbc.gridx = 1;
         formPanel.add(tfName, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 2;
-        formPanel.add(StyleManager.createLabel("Téléphone :", StyleManager.TEXT_MUTED, StyleManager.FONT_SMALL), gbc);
+        formPanel.add(StyleManager.createLabel("Phone:", StyleManager.TEXT_MUTED, StyleManager.FONT_SMALL), gbc);
         gbc.gridx = 1;
         formPanel.add(tfPhone, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 3;
-        formPanel.add(StyleManager.createLabel("Adresse :", StyleManager.TEXT_MUTED, StyleManager.FONT_SMALL), gbc);
+        formPanel.add(StyleManager.createLabel("Address:", StyleManager.TEXT_MUTED, StyleManager.FONT_SMALL), gbc);
         gbc.gridx = 1;
         formPanel.add(tfAddress, gbc);
 
         JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
         actionPanel.setOpaque(false);
-        JButton addBtn = StyleManager.createButton("Ajouter", StyleManager.ACCENT_GREEN);
-        JButton deleteBtn = StyleManager.createButton("Supprimer", StyleManager.ACCENT_RED);
-        JButton clearBtn = StyleManager.createButton("Effacer", new java.awt.Color(100, 100, 120));
+        JButton addBtn = StyleManager.createButton("Add", StyleManager.ACCENT_GREEN);
+        JButton deleteBtn = StyleManager.createButton("Delete", StyleManager.ACCENT_RED);
+        JButton clearBtn = StyleManager.createButton("Clear", new java.awt.Color(100, 100, 120));
 
         addBtn.addActionListener(e -> addSupplier());
         deleteBtn.addActionListener(e -> deleteSupplier());
@@ -100,14 +100,14 @@ public class SupplierView extends JFrame {
         actionPanel.add(deleteBtn);
         actionPanel.add(clearBtn);
 
-        String[] columns = {"Code", "Nom", "Téléphone", "Adresse"};
+        String[] columns = {"Code", "Name", "Phone", "Address"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
         };
-        table = new JTable(tableModel);
+        table = StyleManager.createTable(tableModel);
 
         main.add(header, BorderLayout.NORTH);
         main.add(formPanel, BorderLayout.CENTER);
@@ -129,18 +129,18 @@ public class SupplierView extends JFrame {
             suppliers.add(new Supplier(code, name, phone, address));
             refreshTable();
             clearForm();
-            JOptionPane.showMessageDialog(this, "Fournisseur ajouté.");
+            JOptionPane.showMessageDialog(this, "Supplier added.");
         } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Le code doit être numérique.", "Erreur", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Code must be numeric.", "Error", JOptionPane.ERROR_MESSAGE);
         } catch (IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(this, ex.getMessage(), "Erreur", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void deleteSupplier() {
         int selectedRow = table.getSelectedRow();
         if (selectedRow == -1) {
-            JOptionPane.showMessageDialog(this, "Sélectionnez un fournisseur.");
+            JOptionPane.showMessageDialog(this, "Select a supplier.");
             return;
         }
         suppliers.remove(selectedRow);

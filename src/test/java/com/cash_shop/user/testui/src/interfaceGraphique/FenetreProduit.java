@@ -1,22 +1,22 @@
-package com.cash_shop.employee;
+package interfaceGraphique;
+
+import model.Produit;
+import model.Supermarche;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
-
 import java.awt.*;
+import static interfaceGraphique.StyleManager.*;
 
-import static com.cash_shop.common.StyleManager.*;
-import com.cash_shop.product.Product;
-
-public class EmployeeView extends JFrame {
+public class FenetreProduit extends JFrame {
 
     private JTextField tfRef, tfDes, tfPrixAchat, tfPrixVente, tfStock, tfRecherche;
     private JComboBox<String> cbCategorie;
     private DefaultTableModel tableModel;
     private JTable table;
-    private Product produitSelectionne;
+    private Produit produitSelectionne;
 
-    public EmployeeView() {
-        setTitle("Gestion des Employés");
+    public FenetreProduit() {
+        setTitle("Gestion des Produits");
         setSize(900, 580);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);

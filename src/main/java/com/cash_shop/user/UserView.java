@@ -20,7 +20,7 @@ import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 
-import com.cash_shop.Dashboard;
+import com.cash_shop.Home;
 import static com.cash_shop.common.StyleManager.ACCENT_BLUE;
 import static com.cash_shop.common.StyleManager.ACCENT_GOLD;
 import static com.cash_shop.common.StyleManager.BG_DARK;
@@ -42,9 +42,10 @@ public class UserView extends JFrame {
     private JPasswordField tfPassword;
 
     private final UserService authService = new UserService();
+    private final AccessService accessService = new AccessService();
 
     public UserView() {
-        setTitle("SUPERMARKET MANAGER - Connexion");
+        setTitle("Cash Shop - Login");
         setSize(480, 420);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -60,7 +61,7 @@ public class UserView extends JFrame {
         JPanel header = new JPanel(new FlowLayout(FlowLayout.CENTER));
         header.setBackground(BG_DARK);
         header.setBorder(BorderFactory.createEmptyBorder(20, 0, 10, 0));
-        JLabel titre = createLabel("⚙ CASH SHOP APP", ACCENT_GOLD, FONT_TITLE);
+        JLabel titre = createLabel("CASH SHOP", ACCENT_GOLD, FONT_TITLE);
         header.add(titre);
 
         // Panneau central
@@ -81,7 +82,7 @@ public class UserView extends JFrame {
         c.gridx = 0;
         c.gridy = 0;
         c.gridwidth = 2;
-        JLabel titreForm = createLabel("[ CONNEXION ]", TEXT_PRIMARY, FONT_HEADER);
+        JLabel titreForm = createLabel("[ LOGIN ]", TEXT_PRIMARY, FONT_HEADER);
         titreForm.setHorizontalAlignment(SwingConstants.CENTER);
         card.add(titreForm, c);
 
@@ -90,7 +91,7 @@ public class UserView extends JFrame {
         c.gridx = 0;
         c.gridy = 1;
         c.weightx = 0.0;
-        card.add(createLabel("Identifiant / Login :", TEXT_MUTED, FONT_SMALL), c);
+        card.add(createLabel("Username:", TEXT_MUTED, FONT_SMALL), c);
 
         c.gridx = 1;
         c.weightx = 1.0;
@@ -102,7 +103,7 @@ public class UserView extends JFrame {
         c.gridx = 0;
         c.gridy = 2;
         c.weightx = 0.0;
-        card.add(createLabel("Password :", TEXT_MUTED, FONT_SMALL), c);
+        card.add(createLabel("Password:", TEXT_MUTED, FONT_SMALL), c);
 
         c.gridx = 1;
         c.weightx = 1.0;
@@ -129,14 +130,6 @@ public class UserView extends JFrame {
 
         center.add(card, gbc);
 
-        // Info comptes de test
-        JPanel infoPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        infoPanel.setBackground(BG_DARK);
-        
-        infoPanel.add(createLabel(
-                "admin/admin | comptable/1234 | magasinier/1235 | caissier1/1234 | chef1/1234",
-                TEXT_MUTED, FONT_SMALL));
-
         // Action connexion
         btnConnexion.addActionListener(e -> login());
         tfPassword.addActionListener(e -> login());
@@ -145,7 +138,6 @@ public class UserView extends JFrame {
         mainPanel.setBackground(BG_DARK);
         mainPanel.add(header, BorderLayout.NORTH);
         mainPanel.add(center, BorderLayout.CENTER);
-        mainPanel.add(infoPanel, BorderLayout.SOUTH);
         setContentPane(mainPanel);
     }
 
@@ -171,21 +163,25 @@ public class UserView extends JFrame {
             return;
         }
 
-        boolean authenticated = authService.login(login, password);
-        if (!authenticated) {
-            JOptionPane.showMessageDialog(this,
-                    "Username or password is incorrect.",
-                    "Login Failed", JOptionPane.ERROR_MESSAGE);
-                    //password.isEmpty();
-                    //supprimer le password s'il est incorrect
-
-        } else {
-            JOptionPane.showMessageDialog(this,
-                    "Login successful!",
-                    "Success", JOptionPane.INFORMATION_MESSAGE);
-            setVisible(false);
-            Dashboard dashboard = new Dashboard();
-            dashboard.setVisible(true);
+        try {
+            User authenticatedUser = authService.authenticate(login, password);
+            if (authenticatedUser == null) {
+                JOptionPane.showMessageDialog(this,
+                        "Username, password, or linked employee account is incorrect.",
+                        "Login Failed", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            if (accessService.getAllowedModules(authenticatedUser.getRole()).isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "Your account does not have access to any application module.",
+                        "Access Denied", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            dispose();
+            SwingUtilities.invokeLater(() -> new Home(authenticatedUser.getUsername(), authenticatedUser.getRole())
+                    .setVisible(true));
+        } catch (IllegalStateException exception) {
+            JOptionPane.showMessageDialog(this, exception.getMessage(), "Login Error", JOptionPane.ERROR_MESSAGE);
         }
     }
     public static void main(String[] args) {

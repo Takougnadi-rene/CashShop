@@ -39,21 +39,21 @@ import static com.cash_shop.common.StyleManager.createLabel;
 import static com.cash_shop.common.StyleManager.createTable;
 
 public class EmployeeView extends JFrame {
-    private JTextField tfMatricule, tfPrenom, tfNom, tfEmail, tfSalaire, tfRecherche;
+    private JTextField tfEmployeeId, tfFirstName, tfLastName, tfEmail, tfSalary, tfSearch;
     private JComboBox<Employee.Role> cbRole;
     private DefaultTableModel tableModel;
     private JTable table;
-    private Employee employeeSelectionne;
+    private Employee selectedEmployee;
     private final EmployeeDAO employeeDAO = new EmployeeDAO();
     private final List<Employee> employees = new ArrayList<>();
 
     public EmployeeView() {
-        setTitle("Gestion des Employés");
+        setTitle("Employee Management");
         setSize(900, 580);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         buildUI();
-        chargerEmployes();
+        loadEmployees();
     }
 
     private void buildUI() {
@@ -63,32 +63,34 @@ public class EmployeeView extends JFrame {
         JPanel titrePanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         titrePanel.setBackground(BG_PANEL);
         titrePanel.setBorder(BorderFactory.createEmptyBorder(8, 0, 8, 0));
-        titrePanel.add(createLabel("========== ⚙ GESTION DES EMPLOYÉS ==========", ACCENT_GOLD, FONT_TITLE));
+        titrePanel.add(createLabel("⚙ EMPLOYEE MANAGEMENT", ACCENT_GOLD, FONT_TITLE));
 
         JPanel corps = new JPanel(new GridLayout(1, 2, 10, 0));
         corps.setBackground(BG_DARK);
         corps.setBorder(BorderFactory.createEmptyBorder(10, 10, 5, 10));
+        corps.setPreferredSize(new java.awt.Dimension(900, 450));
 
         JPanel formPanel = createCard();
         formPanel.setLayout(new GridBagLayout());
+        formPanel.setPreferredSize(new java.awt.Dimension(300, 0));
         GridBagConstraints g = new GridBagConstraints();
         g.insets = new Insets(5, 5, 5, 5);
         g.fill = GridBagConstraints.HORIZONTAL;
         g.gridx = 0;
         g.gridy = 0;
         g.gridwidth = 2;
-        formPanel.add(createLabel("[ Formulaire Employé ]", ACCENT_BLUE, FONT_HEADER), g);
+        formPanel.add(createLabel("[ Employee Form ]", ACCENT_BLUE, FONT_HEADER), g);
         g.gridwidth = 1;
 
-        ajouterChamp(formPanel, g, 1, "Matricule :", tfMatricule = createField());
-        ajouterChamp(formPanel, g, 2, "Prénom :", tfPrenom = createField());
-        ajouterChamp(formPanel, g, 3, "Nom :", tfNom = createField());
-        ajouterChamp(formPanel, g, 4, "Email :", tfEmail = createField());
-        ajouterChamp(formPanel, g, 5, "Salaire :", tfSalaire = createField());
+        addField(formPanel, g, 1, "Employee ID:", tfEmployeeId = createField());
+        addField(formPanel, g, 2, "First Name:", tfFirstName = createField());
+        addField(formPanel, g, 3, "Last Name:", tfLastName = createField());
+        addField(formPanel, g, 4, "Email:", tfEmail = createField());
+        addField(formPanel, g, 5, "Salary:", tfSalary = createField());
 
         g.gridy = 6;
         g.gridx = 0;
-        formPanel.add(createLabel("Rôle :", TEXT_MUTED, FONT_SMALL), g);
+        formPanel.add(createLabel("Role:", TEXT_MUTED, FONT_SMALL), g);
         g.gridx = 1;
         cbRole = new JComboBox<>(Employee.Role.values());
         cbRole.setBackground(BG_DARK);
@@ -98,23 +100,24 @@ public class EmployeeView extends JFrame {
 
         g.gridy = 7;
         g.gridx = 0;
-        formPanel.add(createLabel("Recherche :", TEXT_MUTED, FONT_SMALL), g);
+        formPanel.add(createLabel("Search:", TEXT_MUTED, FONT_SMALL), g);
         g.gridx = 1;
-        tfRecherche = createField();
-        formPanel.add(tfRecherche, g);
+        tfSearch = createField();
+        formPanel.add(tfSearch, g);
 
         JPanel listePanel = createCard();
         listePanel.setLayout(new BorderLayout());
-        listePanel.add(createLabel("[ Liste des Employés ]", ACCENT_BLUE, FONT_HEADER), BorderLayout.NORTH);
+        listePanel.setPreferredSize(new java.awt.Dimension(520, 0));
+        listePanel.add(createLabel("[ Employee List ]", ACCENT_BLUE, FONT_HEADER), BorderLayout.NORTH);
         tableModel = new DefaultTableModel(
-                new String[] { "Matricule", "Prénom", "Nom", "Email", "Salaire", "Rôle" }, 0) {
+                new String[] { "Employee ID", "First Name", "Last Name", "Email", "Salary", "Role" }, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
         };
         table = createTable(tableModel);
-        table.getSelectionModel().addListSelectionListener(event -> selectionnerEmploye());
+        table.getSelectionModel().addListSelectionListener(event -> selectEmployee());
         listePanel.add(new JScrollPane(table), BorderLayout.CENTER);
         corps.add(formPanel);
         corps.add(listePanel);
@@ -122,21 +125,21 @@ public class EmployeeView extends JFrame {
         JPanel actionsPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 8));
         actionsPanel.setBackground(BG_PANEL);
         actionsPanel.add(createLabel("[ Actions ]", TEXT_MUTED, FONT_SMALL));
-        javax.swing.JButton btnAjouter = createButton("+ Add", ACCENT_GREEN);
-        javax.swing.JButton btnModifier = createButton("✎ Modify", ACCENT_BLUE);
-        javax.swing.JButton btnSupprimer = createButton("✕ Delete", ACCENT_RED);
-        javax.swing.JButton btnRecherche = createButton("⚲ Search", ACCENT_GOLD);
-        javax.swing.JButton btnFermer = createButton("Close", new Color(80, 80, 100));
-        btnAjouter.addActionListener(event -> ajouterEmploye());
-        btnModifier.addActionListener(event -> modifierEmploye());
-        btnSupprimer.addActionListener(event -> supprimerEmployee());
-        btnRecherche.addActionListener(event -> rechercherEmploye());
-        btnFermer.addActionListener(event -> dispose());
-        actionsPanel.add(btnAjouter);
-        actionsPanel.add(btnModifier);
-        actionsPanel.add(btnSupprimer);
-        actionsPanel.add(btnRecherche);
-        actionsPanel.add(btnFermer);
+        javax.swing.JButton btnAdd = createButton("+ Add", ACCENT_GREEN);
+        javax.swing.JButton btnModify = createButton("✎ Modify", ACCENT_BLUE);
+        javax.swing.JButton btnDelete = createButton("✕ Delete", ACCENT_RED);
+        javax.swing.JButton btnSearch = createButton("⚲ Search", ACCENT_GOLD);
+        javax.swing.JButton btnClose = createButton("Close", new Color(80, 80, 100));
+        btnAdd.addActionListener(event -> addEmployee());
+        btnModify.addActionListener(event -> updateEmployee());
+        btnDelete.addActionListener(event -> deleteEmployee());
+        btnSearch.addActionListener(event -> searchEmployee());
+        btnClose.addActionListener(event -> dispose());
+        actionsPanel.add(btnAdd);
+        actionsPanel.add(btnModify);
+        actionsPanel.add(btnDelete);
+        actionsPanel.add(btnSearch);
+        actionsPanel.add(btnClose);
 
         main.add(titrePanel, BorderLayout.NORTH);
         main.add(corps, BorderLayout.CENTER);
@@ -144,7 +147,7 @@ public class EmployeeView extends JFrame {
         setContentPane(main);
     }
 
-    private void ajouterChamp(JPanel panel, GridBagConstraints constraints, int row, String label,
+    private void addField(JPanel panel, GridBagConstraints constraints, int row, String label,
             JTextField field) {
         constraints.gridy = row;
         constraints.gridx = 0;
@@ -153,131 +156,137 @@ public class EmployeeView extends JFrame {
         panel.add(field, constraints);
     }
 
-    private void chargerEmployes() {
+    private void loadEmployees() {
         employees.clear();
         employees.addAll(employeeDAO.getAllEmployees());
-        afficherEmployes(employees);
+        displayEmployees(employees);
     }
 
-    private void afficherEmployes(List<Employee> employes) {
+    private void displayEmployees(List<Employee> employeeList) {
         tableModel.setRowCount(0);
-        for (Employee employee : employes) {
+        for (Employee employee : employeeList) {
             tableModel.addRow(new Object[] { employee.getMatricule(), employee.getFirstName(),
                     employee.getLastName(), employee.getEmail(), String.format("%.2f", employee.getSalary()),
                     employee.getRole() });
         }
     }
 
-    private void selectionnerEmploye() {
+    private void selectEmployee() {
         int row = table.getSelectedRow();
         if (row < 0 || row >= employees.size()) {
             return;
         }
-        employeeSelectionne = employees.get(row);
-        tfMatricule.setText(employeeSelectionne.getMatricule());
-        tfPrenom.setText(employeeSelectionne.getFirstName());
-        tfNom.setText(employeeSelectionne.getLastName());
-        tfEmail.setText(employeeSelectionne.getEmail());
-        tfSalaire.setText(String.valueOf(employeeSelectionne.getSalary()));
-        cbRole.setSelectedItem(employeeSelectionne.getRole());
+        selectedEmployee = employees.get(row);
+        tfEmployeeId.setText(selectedEmployee.getMatricule());
+        tfFirstName.setText(selectedEmployee.getFirstName());
+        tfLastName.setText(selectedEmployee.getLastName());
+        tfEmail.setText(selectedEmployee.getEmail());
+        tfSalary.setText(String.valueOf(selectedEmployee.getSalary()));
+        cbRole.setSelectedItem(selectedEmployee.getRole());
     }
 
-    private void ajouterEmploye() {
+    private void addEmployee() {
         try {
-            Employee employee = lireEmploye();
-            employeeDAO.addEmployee(employee);
+            Employee employee = readEmployee();
+            employeeDAO.insertEmployee(
+                    employee.getMatricule(),
+                    employee.getFirstName(),
+                    employee.getLastName(),
+                    employee.getEmail(),
+                    employee.getSalary(),
+                    employee.getRole());
             employees.add(employee);
-            chargerEmployes();
-            viderFormulaire();
-            afficherSucces("Employé ajouté avec succès.");
+            loadEmployees();
+            clearForm();
+            showSuccess("Employee added successfully.");
         } catch (IllegalArgumentException exception) {
-            afficherErreur(exception.getMessage());
+            showError(exception.getMessage());
         }
     }
 
-    private void modifierEmploye() {
-        if (employeeSelectionne == null) {
-            afficherErreur("Sélectionnez un employé.");
+    private void updateEmployee() {
+        if (selectedEmployee == null) {
+            showError("Select an employee.");
             return;
         }
         try {
-            Employee employee = lireEmploye();
-            int index = employees.indexOf(employeeSelectionne);
+            Employee employee = readEmployee();
+            int index = employees.indexOf(selectedEmployee);
             employeeDAO.updateEmployee(employee);
             employees.set(index, employee);
-            chargerEmployes();
-            viderFormulaire();
-            afficherSucces("Employé modifié.");
+            loadEmployees();
+            clearForm();
+            showSuccess("Employee updated.");
         } catch (IllegalArgumentException exception) {
-            afficherErreur(exception.getMessage());
+            showError(exception.getMessage());
         }
     }
 
-    private void supprimerEmployee() {
-        if (employeeSelectionne == null) {
-            afficherErreur("Sélectionnez un employé.");
+    private void deleteEmployee() {
+        if (selectedEmployee == null) {
+            showError("Select an employee.");
             return;
         }
         int confirmation = JOptionPane.showConfirmDialog(this,
-                "Supprimer " + employeeSelectionne.getFirstName() + " " + employeeSelectionne.getLastName() + " ?",
+                "Delete " + selectedEmployee.getFirstName() + " " + selectedEmployee.getLastName() + " ?",
                 "Confirmation", JOptionPane.YES_NO_OPTION);
         if (confirmation == JOptionPane.YES_OPTION) {
-            employeeDAO.removeEmployee(employeeSelectionne);
-            employees.remove(employeeSelectionne);
-            chargerEmployes();
-            viderFormulaire();
+            employeeDAO.deleteEmployee(selectedEmployee.getMatricule());
+            employees.remove(selectedEmployee);
+            loadEmployees();
+            clearForm();
         }
     }
 
-    private Employee lireEmploye() {
-        String matricule = tfMatricule.getText().trim();
-        String prenom = tfPrenom.getText().trim();
-        String nom = tfNom.getText().trim();
+    private Employee readEmployee() {
+        String employeeId = tfEmployeeId.getText().trim();
+        String firstName = tfFirstName.getText().trim();
+        String lastName = tfLastName.getText().trim();
         String email = tfEmail.getText().trim();
-        if (matricule.isEmpty() || prenom.isEmpty() || nom.isEmpty() || email.isEmpty()) {
-            throw new IllegalArgumentException("Remplissez tous les champs.");
+        if (employeeId.isEmpty() || firstName.isEmpty() || lastName.isEmpty() || email.isEmpty()) {
+            throw new IllegalArgumentException("Please fill in all fields.");
         }
         try {
-            double salaire = Double.parseDouble(tfSalaire.getText().trim());
-            return new Employee(matricule, prenom, nom, email, salaire,
+            double salary = Double.parseDouble(tfSalary.getText().trim());
+            return new Employee(employeeId, firstName, lastName, email, salary,
                     (Employee.Role) cbRole.getSelectedItem());
         } catch (NumberFormatException exception) {
-            throw new IllegalArgumentException("Vérifiez la valeur du salaire.");
+            throw new IllegalArgumentException("Please check the salary value.");
         }
     }
 
-    private void rechercherEmploye() {
-        String terme = tfRecherche.getText().trim().toLowerCase();
-        List<Employee> resultats = new ArrayList<>();
+    private void searchEmployee() {
+        String term = tfSearch.getText().trim().toLowerCase();
+        List<Employee> results = new ArrayList<>();
         for (Employee employee : employees) {
-            if (employee.getMatricule().toLowerCase().contains(terme)
-                    || employee.getFirstName().toLowerCase().contains(terme)
-                    || employee.getLastName().toLowerCase().contains(terme)
-                    || employee.getEmail().toLowerCase().contains(terme)) {
-                resultats.add(employee);
+            if (employee.getMatricule().toLowerCase().contains(term)
+                    || employee.getFirstName().toLowerCase().contains(term)
+                    || employee.getLastName().toLowerCase().contains(term)
+                    || employee.getEmail().toLowerCase().contains(term)) {
+                results.add(employee);
             }
         }
-        afficherEmployes(resultats);
+        displayEmployees(results);
     }
 
-    private void viderFormulaire() {
-        tfMatricule.setText("");
-        tfPrenom.setText("");
-        tfNom.setText("");
+    private void clearForm() {
+        tfEmployeeId.setText("");
+        tfFirstName.setText("");
+        tfLastName.setText("");
         tfEmail.setText("");
-        tfSalaire.setText("");
-        tfRecherche.setText("");
+        tfSalary.setText("");
+        tfSearch.setText("");
         cbRole.setSelectedIndex(0);
-        employeeSelectionne = null;
+        selectedEmployee = null;
         table.clearSelection();
     }
 
-    private void afficherErreur(String message) {
-        JOptionPane.showMessageDialog(this, message, "Erreur", JOptionPane.ERROR_MESSAGE);
+    private void showError(String message) {
+        JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
     }
 
-    private void afficherSucces(String message) {
-        JOptionPane.showMessageDialog(this, message, "Succès", JOptionPane.INFORMATION_MESSAGE);
+    private void showSuccess(String message) {
+        JOptionPane.showMessageDialog(this, message, "Success", JOptionPane.INFORMATION_MESSAGE);
     }
 
     public static void main(String[] args) {

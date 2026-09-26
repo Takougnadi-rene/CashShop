@@ -10,6 +10,7 @@ import java.util.List;
 import com.cash_shop.common.DBConnection;
 
 public class EmployeeDAO {
+
     public List<Employee> getAllEmployees() {
         List<Employee> employees = new ArrayList<>();
         String sql = "SELECT matricule, first_name, last_name, email, salary, role "
@@ -34,27 +35,36 @@ public class EmployeeDAO {
         return employees;
     }
 
-    public void addEmployee(Employee employee) {
+    public void insertEmployee(String matricule, String first_name, String last_name, String email, double salary,
+            Employee.Role role) {
         String sql = "INSERT INTO employees (matricule, first_name, last_name, email, salary, role) VALUES (?, ?, ?, ?, ?, ?)";
-        execute(sql, statement -> setEmployeeValues(statement, employee));
-    }
 
-    public void updateEmployee(Employee employee) {
-        String sql = "UPDATE employees SET first_name = ?, last_name = ?, email = ?, "
-                + "salary = ?, role = ? WHERE matricule = ?";
         execute(sql, statement -> {
-            statement.setString(1, employee.getFirstName());
-            statement.setString(2, employee.getLastName());
-            statement.setString(3, employee.getEmail());
-            statement.setDouble(4, employee.getSalary());
-            statement.setString(5, employee.getRole().name());
-            statement.setString(6, employee.getMatricule());
+            statement.setString(1, matricule);
+            statement.setString(2, first_name);
+            statement.setString(3, last_name);
+            statement.setString(4, email);
+            statement.setDouble(5, salary);
+            statement.setString(6, role.name());
         });
     }
 
-    public void removeEmployee(Employee employee) {
+    public void updateEmployee(Employee emp) {
+        String sql = "UPDATE employees SET first_name = ?, last_name = ?, email = ?, "
+                + "salary = ?, role = ? WHERE matricule = ?";
+        execute(sql, statement -> {
+            statement.setString(1, emp.getFirstName());
+            statement.setString(2, emp.getLastName());
+            statement.setString(3, emp.getEmail());
+            statement.setDouble(4, emp.getSalary());
+            statement.setString(5, emp.getRole().name());
+            statement.setString(6, emp.getMatricule());
+        });
+    }
+
+    public void deleteEmployee(String matricule) {
         String sql = "DELETE FROM employees WHERE matricule = ?";
-        execute(sql, statement -> statement.setString(1, employee.getMatricule()));
+        execute(sql, statement -> statement.setString(1, matricule));
     }
 
     public void openCashRegister(Employee employee) {
@@ -79,15 +89,6 @@ public class EmployeeDAO {
         } else {
             System.out.println("Only cashiers can process payments.");
         }
-    }
-
-    private void setEmployeeValues(PreparedStatement statement, Employee employee) throws SQLException {
-        statement.setString(1, employee.getMatricule());
-        statement.setString(2, employee.getFirstName());
-        statement.setString(3, employee.getLastName());
-        statement.setString(4, employee.getEmail());
-        statement.setDouble(5, employee.getSalary());
-        statement.setString(6, employee.getRole().name());
     }
 
     private void execute(String sql, StatementParameters parameters) {

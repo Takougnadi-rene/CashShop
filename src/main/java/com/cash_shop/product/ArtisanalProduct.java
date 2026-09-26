@@ -5,19 +5,32 @@ public class ArtisanalProduct extends Product {
     public enum TypeArtisanal {
         BACERY, FISHMONGER, BUTCHER
     }
-    private TypeArtisanal type;
 
-    public ArtisanalProduct(int reference, String designation, double purchasePrice, double sellingPrice, int stockQuantity, 
-        TypeArtisanal type) {
-        super(reference, designation, purchasePrice, sellingPrice, stockQuantity);
-        this.type = type;
+    private TypeArtisanal artisanalType;
+
+    public ArtisanalProduct(int reference, String designation, double purchasePrice, double sellingPrice,
+            int stockQuantity,
+            TypeArtisanal type) {
+        super(reference, designation, "ARTISANAL", "ARTISANAL", purchasePrice, sellingPrice, stockQuantity);
+        this.artisanalType = type;
     }
-    // Getter and Setter for type
-    public TypeArtisanal getType() {
-        return type;
+    // getters and setters
+
+    public String getType() {
+        return artisanalType == null ? super.getType() : artisanalType.name();
     }
 
-    public void setType(TypeArtisanal type) {
-        this.type = type;
+    public void setType(String type) {
+        if (type == null || type.trim().isEmpty()) {
+            artisanalType = null;
+            super.setType(type);
+            return;
+        }
+        artisanalType = TypeArtisanal.valueOf(type.trim().toUpperCase());
+        super.setType(artisanalType.name());
+    }
+
+    public TypeArtisanal getArtisanalType() {
+        return artisanalType;
     }
 }

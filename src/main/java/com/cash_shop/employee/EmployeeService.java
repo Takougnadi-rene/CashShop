@@ -1,15 +1,26 @@
 package com.cash_shop.employee;
+
+import com.cash_shop.employee.Employee.Role;
+
 public class EmployeeService {
 
-    public void addEmployee(Employee employee) {
-        //Employee emp = new Employee();
-        System.out.println("Employee added: " + employee.getFirstName() + " " + employee.getLastName());
+    // add
+    public void addEmployee(String matricule, String firstName, String lastName, String email, double salary,
+            Role role) {
+        new EmployeeDAO().insertEmployee(matricule, firstName, lastName, email, salary, role);
     }
 
-    public void removeEmployee(Employee employee) {
-        System.out.println("Employee removed: " + employee.getFirstName() + " " + employee.getLastName());
+    // remove
+    public void removeEmployee(Employee emp) {
+        new EmployeeDAO().deleteEmployee(emp.getMatricule());
     }
 
+    // update
+    public void updateEmployee(Employee emp) {
+        new EmployeeDAO().updateEmployee(emp);
+    }
+
+    // cashier
     public void openCashRegister(Employee employee) {
         if (employee.getRole() == Employee.Role.CASHIER) {
             System.out.println("Cash register opened by " + employee.getFirstName() + " " + employee.getLastName());
@@ -33,5 +44,5 @@ public class EmployeeService {
             System.out.println("Only cashiers can process payments.");
         }
     }
-    
+
 }

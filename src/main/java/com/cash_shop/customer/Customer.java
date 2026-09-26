@@ -5,38 +5,35 @@ import java.util.ArrayList;
 import com.cash_shop.purchase.Purchase;
 
 public class Customer {
-    private String firstName;
-    private String lastName;
+    private final int customerId;
+    private String name;
     private String email;
     private String phoneNumber;
     private double totalSpent;
-    private int loyaltyPoints;
+    private int fifelityPoints;
     private ArrayList<Purchase> purchaseHistory;
 
-    public Customer(String firstName, String lastName, String email, String phoneNumber) {
-        this.firstName = firstName;
-        this.lastName = lastName;
+    public Customer(int customerId, String name, String email, String phoneNumber, double totalSpent) {
+        this.customerId = customerId;
+        this.name = name;
         this.email = email;
         this.phoneNumber = phoneNumber;
-        this.totalSpent = 0.0;
-        this.loyaltyPoints = 0;
+        this.totalSpent = totalSpent;
         this.purchaseHistory = new ArrayList<>();
     }
 
-    public String getFirstName() {
-        return firstName;
+    // getter and setters
+
+    public String getName() {
+        return name;
     }
 
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
+    public int getCustomerId() {
+        return customerId;
     }
 
-    public String getLastName() {
-        return lastName;
-    }
-
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getEmail() {
@@ -63,12 +60,20 @@ public class Customer {
         this.totalSpent = totalSpent;
     }
 
+    public int getFifelityPoints() {
+        return fifelityPoints;
+    }
+
     public int getLoyaltyPoints() {
-        return loyaltyPoints;
+        return fifelityPoints;
+    }
+
+    public void setFifelityPoints(int fifelityPoints) {
+        this.fifelityPoints = fifelityPoints;
     }
 
     public void setLoyaltyPoints(int loyaltyPoints) {
-        this.loyaltyPoints = loyaltyPoints;
+        this.fifelityPoints = loyaltyPoints;
     }
 
     public ArrayList<Purchase> getPurchaseHistory() {
@@ -83,9 +88,5 @@ public class Customer {
         if (purchase != null) {
             purchaseHistory.add(purchase);
         }
-    }
-
-    public String getFullName() {
-        return firstName + " " + lastName;
     }
 }

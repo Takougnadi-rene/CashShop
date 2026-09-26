@@ -23,33 +23,13 @@ public class Bill {
         this.purchasedItems = purchasedItems != null ? purchasedItems : new ArrayList<>();
     }
 
-    public int getBillId() {
-        return billId;
-    }
-
-    public void setBillId(int billId) {
-        this.billId = billId;
-    }
-
-    public Date getBillDate() {
-        return billDate;
-    }
-
-    public void setBillDate(Date billDate) {
-        this.billDate = billDate;
-    }
-
-    public Customer getCustomer() {
-        return customer;
-    }
-
-    public void setCustomer(Customer customer) {
-        this.customer = customer;
-    }
-
-    public Employee getCashier() {
-        return cashier;
-    }
+    public int getBillId() {return billId;}
+    public void setBillId(int billId) {this.billId = billId;}
+    public Date getBillDate() {return billDate;}
+    public void setBillDate(Date billDate) {this.billDate = billDate;}
+    public Customer getCustomer() {return customer;}
+    public void setCustomer(Customer customer) {this.customer = customer;}
+    public Employee getCashier() {return cashier;}
 
     public void setCashier(Employee cashier) {
         this.cashier = cashier;
@@ -74,14 +54,14 @@ public class Bill {
 
         sb.append("================================================\n");
         sb.append("        SUPER MARKET PLUS\n");
-        sb.append("     Rapport d'Achat - Ticket\n");
+        sb.append("         Purchase Receipt\n");
         sb.append("================================================\n\n");
-        sb.append(String.format("Facture N° : %04d        Date : %s\n", billId, sdf.format(billDate)));
-        sb.append(String.format("Caissier   : %-15s Client : %s\n",
+        sb.append(String.format("Receipt No.: %04d        Date: %s\n", billId, sdf.format(billDate)));
+        sb.append(String.format("Cashier    : %-15s Customer: %s\n",
                 cashier != null ? cashier.getFirstName() + " " + cashier.getLastName() : "N/A",
-                customer != null ? customer.getFirstName() + " " + customer.getLastName() : "Tout-Venant"));
+            customer != null ? customer.getName() : "Walk-in"));
         sb.append("\n------------------------------------------------\n");
-        sb.append(String.format("%-20s %5s %15s\n", "PRODUIT", "QTÉ", "PRIX (FCFA)"));
+        sb.append(String.format("%-20s %5s %15s\n", "PRODUCT", "QTY", "PRICE (FCFA)"));
         sb.append("------------------------------------------------\n");
 
         for (Product product : purchasedItems) {
@@ -90,10 +70,10 @@ public class Bill {
         }
 
         sb.append("\n------------------------------------------------\n");
-        sb.append(String.format("TOTAL À PAYER :         %15.0f FCFA\n", total));
+        sb.append(String.format("TOTAL DUE:               %15.0f FCFA\n", total));
         sb.append("\n================================================\n");
-        sb.append("         Merci de votre confiance !\n");
-        sb.append("         À bientôt dans nos rayons.\n");
+        sb.append("         Thank you for shopping with us!\n");
+        sb.append("         See you again soon.\n");
         sb.append("================================================\n");
         return sb.toString();
     }

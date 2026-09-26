@@ -12,7 +12,6 @@ import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
-import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
@@ -26,8 +25,10 @@ public class SaleView extends JFrame {
     private final List<Product> catalog = new ArrayList<>();
     private final List<Product> basket = new ArrayList<>();
     private final JComboBox<Product> cbProducts = new JComboBox<>();
+        private final javax.swing.JLabel totalLabel = StyleManager.createLabel("TOTAL: 0.00 FCFA",
+            StyleManager.ACCENT_GOLD, StyleManager.FONT_HEADER);
     private final DefaultTableModel basketModel = new DefaultTableModel(
-            new String[]{"Produit", "Prix", "Qté", "Total"}, 0) {
+            new String[]{"Product", "Unit Price", "Quantity", "Subtotal"}, 0) {
         @Override
         public boolean isCellEditable(int row, int column) {
             return false;
@@ -37,7 +38,7 @@ public class SaleView extends JFrame {
 
     public SaleView() {
         initCatalogue();
-        setTitle("Ventes et Caisse");
+        setTitle("Sales and Checkout");
         setSize(920, 520);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -60,7 +61,7 @@ public class SaleView extends JFrame {
 
         JPanel header = new JPanel(new FlowLayout(FlowLayout.CENTER));
         header.setBackground(StyleManager.BG_DARK);
-        header.add(StyleManager.createLabel("=== CAISSE / VENTES ===", StyleManager.ACCENT_GOLD, StyleManager.FONT_TITLE));
+        header.add(StyleManager.createLabel("SALES / CHECKOUT", StyleManager.ACCENT_GOLD, StyleManager.FONT_TITLE));
 
         JPanel formPanel = StyleManager.createCard();
         formPanel.setLayout(new GridBagLayout());
@@ -70,15 +71,15 @@ public class SaleView extends JFrame {
 
         gbc.gridx = 0;
         gbc.gridy = 0;
-        formPanel.add(StyleManager.createLabel("Produit :", StyleManager.TEXT_MUTED, StyleManager.FONT_SMALL), gbc);
+        formPanel.add(StyleManager.createLabel("Product:", StyleManager.TEXT_MUTED, StyleManager.FONT_SMALL), gbc);
         gbc.gridx = 1;
         formPanel.add(cbProducts, gbc);
 
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
         btnPanel.setOpaque(false);
-        JButton btnAdd = StyleManager.createButton("Ajouter au panier", StyleManager.ACCENT_GREEN);
-        JButton btnRemove = StyleManager.createButton("Retirer", StyleManager.ACCENT_RED);
-        JButton btnValidate = StyleManager.createButton("Valider", StyleManager.ACCENT_BLUE);
+        JButton btnAdd = StyleManager.createButton("Add to Cart", StyleManager.ACCENT_GREEN);
+        JButton btnRemove = StyleManager.createButton("Remove", StyleManager.ACCENT_RED);
+        JButton btnValidate = StyleManager.createButton("Complete Sale", StyleManager.ACCENT_BLUE);
 
         btnAdd.addActionListener(e -> addToBasket());
         btnRemove.addActionListener(e -> removeSelectedItem());
@@ -94,7 +95,6 @@ public class SaleView extends JFrame {
 
         JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         footer.setBackground(StyleManager.BG_DARK);
-        JLabel totalLabel = StyleManager.createLabel("Total : 0.00 FCFA", StyleManager.ACCENT_GOLD, StyleManager.FONT_HEADER);
         footer.add(totalLabel);
 
         main.add(header, BorderLayout.NORTH);
@@ -120,6 +120,7 @@ public class SaleView extends JFrame {
         Product product = (Product) selected;
         basket.add(product);
         basketModel.addRow(new Object[]{product.getDesignation(), product.getSellingPrice(), 1, product.getSellingPrice()});
+        updateTotal();
     }
 
     private void removeSelectedItem() {
@@ -127,6 +128,7 @@ public class SaleView extends JFrame {
         if (row >= 0) {
             basket.remove(row);
             basketModel.removeRow(row);
+            updateTotal();
         }
     }
 
@@ -135,9 +137,18 @@ public class SaleView extends JFrame {
         for (int i = 0; i < basketModel.getRowCount(); i++) {
             total += (double) basketModel.getValueAt(i, 3);
         }
-        javax.swing.JOptionPane.showMessageDialog(this, "Vente validée. Total à payer : " + total + " FCFA");
+        javax.swing.JOptionPane.showMessageDialog(this, "Sale completed. Total due: " + total + " FCFA");
         basket.clear();
         basketModel.setRowCount(0);
+        updateTotal();
+    }
+
+    private void updateTotal() {
+        double total = 0.0;
+        for (int row = 0; row < basketModel.getRowCount(); row++) {
+            total += ((Number) basketModel.getValueAt(row, 3)).doubleValue();
+        }
+        totalLabel.setText(String.format("TOTAL: %.2f FCFA", total));
     }
 
     public static void main(String[] args) {
