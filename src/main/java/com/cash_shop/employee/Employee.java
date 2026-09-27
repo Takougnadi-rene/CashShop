@@ -10,6 +10,8 @@ public class Employee {
     public enum Role {
         ADMIN,
         MANAGER,
+        ACCOUNTANT,
+        STOREKEEPER,
         COUNTER,
         AISLE_MANAGER,
         CASHIER,

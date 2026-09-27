@@ -8,14 +8,14 @@ public class ProduitService {
 
     public void addProduct(int reference, String designation, double purchasePrice, double sellingPrice,
             int stockQuantity) {
-        Product product = new Product(reference, designation, purchasePrice, sellingPrice, stockQuantity);
+        //Product product = new Product(reference, designation, purchasePrice, sellingPrice, stockQuantity);
         productDAO.insertProduct(product);
-        this.product = product;
+        //this.product = product;
     }
 
     public void addFreshProduct(int reference, String designation, double purchasePrice, double sellingPrice,
             int stockQuantity, String expirationDate, double storageTemperature) {
-        Product product = new Product(reference, designation, purchasePrice, sellingPrice, stockQuantity);
+        //Product product = new Product(reference, designation, purchasePrice, sellingPrice, stockQuantity);
         productDAO.insertProduct(product);
         FreshProduct fp = new FreshProduct(reference, designation, purchasePrice, sellingPrice, stockQuantity,
                 expirationDate,
@@ -26,9 +26,9 @@ public class ProduitService {
 
     public void addArtisanalProduct(int reference, String designation, double purchasePrice, double sellingPrice,
             int stockQuantity, String type) {
-        Product product = new Product(reference, designation, purchasePrice, sellingPrice, stockQuantity);
+        //Product product = new Product(reference, designation, purchasePrice, sellingPrice, stockQuantity);
         productDAO.insertProduct(product);
-        TypeArtisanal artisanalType = TypeArtisanal.valueOf(type.trim().toUpperCase());
+        TypeArtisanal artisanalType = TypeArtisanal.from(type);
         ArtisanalProduct ap = new ArtisanalProduct(reference, designation, purchasePrice, sellingPrice, stockQuantity,
                 artisanalType);
         productDAO.insertArtisanalProduct(ap);

@@ -44,7 +44,7 @@ public class ProductDAO {
         String sql = "INSERT INTO artisanal_products (reference, type) VALUES (?,?)";
         execute(sql, statement -> {
             statement.setInt(1, product.getReference());
-            statement.setString(2, product.getType().toString());
+            statement.setString(2, product.getType());
         });
     }
 
@@ -144,17 +144,14 @@ public class ProductDAO {
     // get all products
     public List<Product> getAllProducts() {
         List<Product> products = new ArrayList<>();
-        String sql = "SELECT * FROM products";
+        String sql = "SELECT reference, designation, purchase_price, selling_price, stock_quantity, "
+            + "electronic_brand, warranty, expiration_date, storage_temperature, artisanal_type "
+            + "FROM all_products ORDER BY reference";
         try (Connection connection = DBConnection.getConnection();
                 PreparedStatement statement = connection.prepareStatement(sql);
                 ResultSet resultSet = statement.executeQuery()) {
             while (resultSet.next()) {
-                products.add(new Product(
-                        resultSet.getInt("reference"),
-                        resultSet.getString("designation"),
-                        resultSet.getDouble("purchase_price"),
-                        resultSet.getDouble("selling_price"),
-                        resultSet.getInt("stock_quantity")));
+                    products.add(mapProduct(resultSet));
             }
         } catch (SQLException exception) {
             throw new IllegalStateException("Impossible d'acceder a la base de donnees.", exception);
@@ -162,42 +159,58 @@ public class ProductDAO {
         return products;
     }
 
+    private Product mapProduct(ResultSet resultSet) throws SQLException {
+        int reference = resultSet.getInt("reference");
+        String designation = resultSet.getString("designation");
+        double purchasePrice = resultSet.getDouble("purchase_price");
+        double sellingPrice = resultSet.getDouble("selling_price");
+        int stockQuantity = resultSet.getInt("stock_quantity");
+        String expirationDate = resultSet.getString("expiration_date");
+        String artisanalType = resultSet.getString("artisanal_type");
+        if (resultSet.getObject("warranty") != null) {
+            return new ElectronicProduct(reference, designation, purchasePrice, sellingPrice, stockQuantity,
+                    resultSet.getString("electronic_brand"), resultSet.getInt("warranty"));
+        }
+        if (expirationDate != null) {
+            return new FreshProduct(reference, designation, purchasePrice, sellingPrice, stockQuantity,
+                    expirationDate, resultSet.getDouble("storage_temperature"));
+        }
+        if (artisanalType != null) {
+            return new ArtisanalProduct(reference, designation, purchasePrice, sellingPrice, stockQuantity,
+                    ArtisanalProduct.TypeArtisanal.from(artisanalType));
+        }
+        return new Product(reference, designation, purchasePrice, sellingPrice, stockQuantity);
+    }
+
     public ArrayList<Product> getProductById(int reference) {
-        String sql = "SELECT * FROM products WHERE reference = ?";
+        String sql = "SELECT * FROM all_products WHERE reference = ?";
         ArrayList<Product> products = new ArrayList<>();
         try (Connection connection = DBConnection.getConnection();
                 PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, reference);
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
-                    products.add(new Product(
-                            resultSet.getInt("reference"),
-                            resultSet.getString("designation"),
-                            resultSet.getDouble("purchase_price"),
-                            resultSet.getDouble("selling_price"),
-                            resultSet.getInt("stock_quantity")));
+                        products.add(mapProduct(resultSet));
                 }
             }
         } catch (SQLException exception) {
             throw new IllegalStateException("Impossible d'acceder a la base de donnees.", exception);
         }
-        throw new IllegalArgumentException("Product not found: " + reference);
+        if (products.isEmpty()) {
+            throw new IllegalArgumentException("Product not found: " + reference);
+        }
+        return products;
     }
 
     public ArrayList<Product> getProductsByName(String name) {
-        String sql = "SELECT * FROM products WHERE designation LIKE ?";
+        String sql = "SELECT * FROM all_products WHERE designation LIKE ?";
         ArrayList<Product> products = new ArrayList<>();
         try (Connection connection = DBConnection.getConnection();
                 PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, "%" + name + "%");
             try (ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
-                    products.add(new Product(
-                            resultSet.getInt("reference"),
-                            resultSet.getString("designation"),
-                            resultSet.getDouble("purchase_price"),
-                            resultSet.getDouble("selling_price"),
-                            resultSet.getInt("stock_quantity")));
+                        products.add(mapProduct(resultSet));
                 }
             }
         } catch (SQLException exception) {

@@ -8,6 +8,8 @@ import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -21,6 +23,7 @@ import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 
 import com.cash_shop.Home;
+import com.cash_shop.aisle.AisleView;
 import static com.cash_shop.common.StyleManager.ACCENT_BLUE;
 import static com.cash_shop.common.StyleManager.ACCENT_GOLD;
 import static com.cash_shop.common.StyleManager.BG_DARK;
@@ -35,6 +38,8 @@ import static com.cash_shop.common.StyleManager.createButton;
 import static com.cash_shop.common.StyleManager.createCard;
 import static com.cash_shop.common.StyleManager.createField;
 import static com.cash_shop.common.StyleManager.createLabel;
+import com.cash_shop.employee.Employee.Role;
+import com.cash_shop.sale.SaleView;
 
 public class UserView extends JFrame {
 
@@ -178,12 +183,32 @@ public class UserView extends JFrame {
                 return;
             }
             dispose();
-            SwingUtilities.invokeLater(() -> new Home(authenticatedUser.getUsername(), authenticatedUser.getRole())
-                    .setVisible(true));
+                SwingUtilities.invokeLater(() -> openHome(authenticatedUser));
         } catch (IllegalStateException exception) {
             JOptionPane.showMessageDialog(this, exception.getMessage(), "Login Error", JOptionPane.ERROR_MESSAGE);
         }
     }
+
+    private void openHome(User authenticatedUser) {
+        Role role = authenticatedUser.getRole();
+        JFrame landingWindow = switch (role) {
+            case CASHIER, COUNTER -> new SaleView();
+            case AISLE_MANAGER -> new AisleView(authenticatedUser.getEmployeeName());
+            default -> null;
+        };
+        if (landingWindow == null) {
+            new Home(authenticatedUser.getUsername(), role, authenticatedUser.getEmployeeName()).setVisible(true);
+            return;
+        }
+        landingWindow.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosed(WindowEvent event) {
+                SwingUtilities.invokeLater(() -> new UserView().setVisible(true));
+            }
+        });
+        landingWindow.setVisible(true);
+    }
+
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new UserView().setVisible(true));
     }

@@ -20,6 +20,7 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 
+import com.cash_shop.common.EmailService;
 import static com.cash_shop.common.StyleManager.ACCENT_BLUE;
 import static com.cash_shop.common.StyleManager.ACCENT_GOLD;
 import static com.cash_shop.common.StyleManager.ACCENT_GREEN;
@@ -37,6 +38,7 @@ import static com.cash_shop.common.StyleManager.createCard;
 import static com.cash_shop.common.StyleManager.createField;
 import static com.cash_shop.common.StyleManager.createLabel;
 import static com.cash_shop.common.StyleManager.createTable;
+import com.cash_shop.user.AccountCredentials;
 
 public class EmployeeView extends JFrame {
     private JTextField tfEmployeeId, tfFirstName, tfLastName, tfEmail, tfSalary, tfSearch;
@@ -45,14 +47,28 @@ public class EmployeeView extends JFrame {
     private JTable table;
     private Employee selectedEmployee;
     private final EmployeeDAO employeeDAO = new EmployeeDAO();
+    private final EmployeeService employeeService = new EmployeeService();
+    private final EmailService emailService = new EmailService();
     private final List<Employee> employees = new ArrayList<>();
+    private final boolean readOnly;
 
     public EmployeeView() {
+        this(false);
+    }
+
+    public EmployeeView(boolean readOnly) {
+        this.readOnly = readOnly;
         setTitle("Employee Management");
         setSize(900, 580);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         buildUI();
+        tfEmployeeId.setEditable(!readOnly);
+        tfFirstName.setEditable(!readOnly);
+        tfLastName.setEditable(!readOnly);
+        tfEmail.setEditable(!readOnly);
+        tfSalary.setEditable(!readOnly);
+        cbRole.setEnabled(!readOnly);
         loadEmployees();
     }
 
@@ -130,6 +146,9 @@ public class EmployeeView extends JFrame {
         javax.swing.JButton btnDelete = createButton("✕ Delete", ACCENT_RED);
         javax.swing.JButton btnSearch = createButton("⚲ Search", ACCENT_GOLD);
         javax.swing.JButton btnClose = createButton("Close", new Color(80, 80, 100));
+        btnAdd.setEnabled(!readOnly);
+        btnModify.setEnabled(!readOnly);
+        btnDelete.setEnabled(!readOnly);
         btnAdd.addActionListener(event -> addEmployee());
         btnModify.addActionListener(event -> updateEmployee());
         btnDelete.addActionListener(event -> deleteEmployee());
@@ -188,7 +207,7 @@ public class EmployeeView extends JFrame {
     private void addEmployee() {
         try {
             Employee employee = readEmployee();
-            employeeDAO.insertEmployee(
+                AccountCredentials credentials = employeeService.addEmployee(
                     employee.getMatricule(),
                     employee.getFirstName(),
                     employee.getLastName(),
@@ -198,8 +217,14 @@ public class EmployeeView extends JFrame {
             employees.add(employee);
             loadEmployees();
             clearForm();
-            showSuccess("Employee added successfully.");
-        } catch (IllegalArgumentException exception) {
+            boolean emailSent = emailService.sendEmployeeCredentials(employee.getEmail(), credentials.login(),
+                    credentials.password());
+            String message = "Employee and application account created.\n\nLogin: " + credentials.login()
+                    + "\nTemporary password: " + credentials.password()
+                    + (emailSent ? "\n\nCredentials sent to " + employee.getEmail() + "."
+                            : "\n\nEmail was not sent. Configure SMTP to enable email delivery.");
+            showSuccess(message);
+        } catch (IllegalArgumentException | IllegalStateException exception) {
             showError(exception.getMessage());
         }
     }

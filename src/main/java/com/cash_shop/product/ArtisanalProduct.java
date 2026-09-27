@@ -1,9 +1,19 @@
 package com.cash_shop.product;
 
+import java.util.Locale;
+
 public class ArtisanalProduct extends Product {
 
     public enum TypeArtisanal {
-        BACERY, FISHMONGER, BUTCHER
+        BAKERY, FISHMONGER, BUTCHER;
+
+        public static TypeArtisanal from(String type) {
+            String normalized = type.trim().toUpperCase(Locale.ROOT);
+            if ("BACERY".equals(normalized)) {
+                normalized = "BAKERY";
+            }
+            return valueOf(normalized);
+        }
     }
 
     private TypeArtisanal artisanalType;
@@ -25,7 +35,7 @@ public class ArtisanalProduct extends Product {
             artisanalType = null;
             return;
         }
-        artisanalType = TypeArtisanal.valueOf(type.trim().toUpperCase());
+        artisanalType = TypeArtisanal.from(type);
     }
 
     public TypeArtisanal getArtisanalType() {

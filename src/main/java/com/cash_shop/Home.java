@@ -21,7 +21,6 @@ import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 
 import com.cash_shop.aisle.AisleView;
-import com.cash_shop.employee.Employee.Role;
 import static com.cash_shop.common.StyleManager.ACCENT_BLUE;
 import static com.cash_shop.common.StyleManager.ACCENT_GOLD;
 import static com.cash_shop.common.StyleManager.ACCENT_GREEN;
@@ -38,6 +37,7 @@ import static com.cash_shop.common.StyleManager.createButton;
 import static com.cash_shop.common.StyleManager.createCard;
 import static com.cash_shop.common.StyleManager.createLabel;
 import com.cash_shop.customer.CustomerView;
+import com.cash_shop.employee.Employee.Role;
 import com.cash_shop.employee.EmployeeView;
 import com.cash_shop.product.Product;
 import com.cash_shop.product.ProductDAO;
@@ -45,12 +45,13 @@ import com.cash_shop.product.ProductView;
 import com.cash_shop.product.StockView;
 import com.cash_shop.sale.SaleView;
 import com.cash_shop.supplier.SupplierView;
-import com.cash_shop.user.UserView;
 import com.cash_shop.user.AccessService;
 import com.cash_shop.user.AccessService.Module;
+import com.cash_shop.user.UserView;
 
 public class Home extends JFrame {
 	private final String username;
+	private final String employeeName;
 	private final Role role;
 	private final AccessService accessService = new AccessService();
 	private JLabel dateLabel;
@@ -59,15 +60,21 @@ public class Home extends JFrame {
 	private JLabel stockValueLabel;
 
 	public Home(String username, Role role) {
+		this(username, role, "");
+	}
+
+	public Home(String username, Role role, String employeeName) {
 		this.username = username;
 		this.role = role;
-		setTitle("Cash Shop - Home");
+		this.employeeName = employeeName;
+		setTitle("Supermarket Manager - Home");
 		setSize(1050, 660);
 		setLocationRelativeTo(null);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		buildUI();
 		refreshOverview();
 		new Timer(1000, event -> dateLabel.setText(currentDateTime())).start();
+		new Timer(30000, event -> refreshOverview()).start();
 	}
 
 	private void buildUI() {
@@ -77,7 +84,7 @@ public class Home extends JFrame {
 		JPanel header = new JPanel(new BorderLayout());
 		header.setBackground(BG_PANEL);
 		header.setBorder(javax.swing.BorderFactory.createEmptyBorder(12, 18, 12, 18));
-		header.add(createLabel("CASH SHOP", ACCENT_GOLD, FONT_TITLE), BorderLayout.WEST);
+		header.add(createLabel("SUPERMARKET MANAGER", ACCENT_GOLD, FONT_TITLE), BorderLayout.WEST);
 		dateLabel = createLabel(currentDateTime(), TEXT_MUTED, FONT_BODY);
 		header.add(dateLabel, BorderLayout.EAST);
 
@@ -92,20 +99,22 @@ public class Home extends JFrame {
 				javax.swing.BorderFactory.createLineBorder(com.cash_shop.common.StyleManager.BORDER_COLOR),
 				javax.swing.BorderFactory.createEmptyBorder(12, 10, 12, 10)));
 		navigation.setPreferredSize(new Dimension(210, 0));
-		navigation.add(createLabel("NAVIGATION", ACCENT_GOLD, FONT_HEADER));
+		navigation.add(createLabel("[ NAVIGATION ]", ACCENT_GOLD, FONT_HEADER));
 		navigation.add(Box.createVerticalStrut(12));
-		if (canAccess(Module.DASHBOARD)) {
-			addNavigationButton(navigation, "Dashboard", () -> new Dashboard(role));
-		}
-		if (canAccess(Module.EMPLOYEES)) addNavigationButton(navigation, "Employees", EmployeeView::new);
-		if (canAccess(Module.CUSTOMERS)) addNavigationButton(navigation, "Customers", CustomerView::new);
-		if (canAccess(Module.PRODUCTS)) addNavigationButton(navigation, "Products", ProductView::new);
+		if (canAccess(Module.PRODUCTS)) addNavigationButton(navigation, "Products", () -> new ProductView(role != Role.ADMIN));
 		if (canAccess(Module.STOCK)) addNavigationButton(navigation, "Stock", StockView::new);
-		if (canAccess(Module.AISLES)) {
-			addNavigationButton(navigation, "Aisles", () -> new AisleView(role == Role.AISLE_MANAGER));
-		}
-		if (canAccess(Module.SALES)) addNavigationButton(navigation, "Sales", SaleView::new);
 		if (canAccess(Module.SUPPLIERS)) addNavigationButton(navigation, "Suppliers", SupplierView::new);
+		if (canAccess(Module.SALES)) addNavigationButton(navigation, "Checkout", SaleView::new);
+		if (canAccess(Module.CUSTOMERS)) addNavigationButton(navigation, "Customers", CustomerView::new);
+		if (canAccess(Module.EMPLOYEES)) addNavigationButton(navigation, "Employees", () -> new EmployeeView(role != Role.ADMIN));
+		if (canAccess(Module.DASHBOARD)) {
+			addNavigationButton(navigation, "Statistics", () -> new Dashboard(role));
+		}
+		if (canAccess(Module.AISLES)) {
+			addNavigationButton(navigation, "Aisles", () -> new AisleView(role != Role.ADMIN,
+					role == Role.AISLE_MANAGER ? employeeName : null));
+		}
+		if (canAccess(Module.USERS)) addNavigationButton(navigation, "Users", com.cash_shop.user.UserManagementView::new);
 		navigation.add(Box.createVerticalGlue());
 		javax.swing.JButton logout = createButton("Log Out", ACCENT_RED);
 		logout.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -120,11 +129,11 @@ public class Home extends JFrame {
 		overview.setBackground(BG_DARK);
 		JPanel welcome = createCard();
 		welcome.setLayout(new BoxLayout(welcome, BoxLayout.Y_AXIS));
-		welcome.add(createLabel("[ WELCOME TO CASH SHOP ]", ACCENT_GOLD, FONT_HEADER));
+		welcome.add(createLabel("[ WELCOME TO YOUR MANAGEMENT SPACE ]", ACCENT_GOLD, FONT_HEADER));
 		welcome.add(Box.createVerticalStrut(10));
 		welcome.add(createLabel("Welcome, " + username, TEXT_PRIMARY, FONT_TITLE));
 		welcome.add(Box.createVerticalStrut(6));
-		welcome.add(createLabel("Choose a module from the navigation menu.", TEXT_MUTED, FONT_SMALL));
+		welcome.add(createLabel("Select an option from the menu on the left to get started.", TEXT_MUTED, FONT_SMALL));
 
 		if (canAccess(Module.PRODUCTS)) {
 			JPanel summary = createCard();
@@ -144,9 +153,9 @@ public class Home extends JFrame {
 
 		JPanel quickActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
 		quickActions.setOpaque(false);
-		quickActions.add(createLabel("QUICK ACCESS", TEXT_MUTED, FONT_HEADER));
-		if (canAccess(Module.STOCK)) quickActions.add(quickButton("Open Stock", ACCENT_BLUE, StockView::new));
-		if (canAccess(Module.SALES)) quickActions.add(quickButton("Start Sale", ACCENT_GREEN, SaleView::new));
+		quickActions.add(createLabel("NAVIGATION SHORTCUTS", TEXT_MUTED, FONT_HEADER));
+		if (canAccess(Module.STOCK)) quickActions.add(quickButton("View Stock", ACCENT_BLUE, StockView::new));
+		if (canAccess(Module.SALES)) quickActions.add(quickButton("View Sales", ACCENT_GREEN, SaleView::new));
 		overview.add(welcome, BorderLayout.NORTH);
 		overview.add(quickActions, BorderLayout.SOUTH);
 
@@ -187,7 +196,7 @@ public class Home extends JFrame {
 					.mapToDouble(product -> product.getSellingPrice() * product.getStockQuantity()).sum();
 			productCountLabel.setText("Products in catalog: " + products.size());
 			lowStockLabel.setText("Low-stock products: " + lowStock);
-			stockValueLabel.setText(String.format("Inventory value: %.0f FCFA", stockValue));
+			stockValueLabel.setText(String.format("Inventory value: %.2f USD", stockValue));
 		} catch (IllegalStateException exception) {
 			productCountLabel.setText("Products in catalog: unavailable");
 			lowStockLabel.setText("Low-stock products: unavailable");
@@ -200,6 +209,6 @@ public class Home extends JFrame {
 	}
 
 	private String currentDateTime() {
-		return new SimpleDateFormat("yyyy-MM-dd  |  HH:mm:ss").format(new Date());
+		return new SimpleDateFormat("dd/MM/yyyy  |  HH:mm").format(new Date());
 	}
 }

@@ -13,12 +13,8 @@ public class PaymentService {
     }
 
     public boolean validatePayment(Payment payment) {
-        if (payment.getAmount() > 0 && payment.getPaymentDate() != null && payment.getPaymentMode() != null
-                && payment.getSale() != null) {
-            return true;
-        } else {
-            return false;
-        }
+        return payment.getAmount() > 0 && payment.getPaymentDate() != null && payment.getPaymentMode() != null
+                && payment.getSale() != null;
     }
 
     public void displayPaymentDetails(Payment payment) {

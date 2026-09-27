@@ -41,6 +41,7 @@ import com.cash_shop.product.ProductDAO;
 
 public class AisleView extends JFrame {
     private final boolean readOnly;
+    private final String assignedManager;
     private final AisleDAO aisleDAO = new AisleDAO();
     private final ProductDAO productDAO = new ProductDAO();
     private final List<Aisle> aisles = new ArrayList<>();
@@ -69,11 +70,20 @@ public class AisleView extends JFrame {
     private Aisle selectedAisle;
 
     public AisleView() {
-        this(false);
+        this(false, null);
     }
 
     public AisleView(boolean readOnly) {
+        this(readOnly, null);
+    }
+
+    public AisleView(String assignedManager) {
+        this(true, assignedManager);
+    }
+
+    public AisleView(boolean readOnly, String assignedManager) {
         this.readOnly = readOnly;
+        this.assignedManager = assignedManager;
         setTitle(readOnly ? "Aisle Overview" : "Aisle Management");
         setSize(980, 620);
         setLocationRelativeTo(null);
@@ -180,7 +190,17 @@ public class AisleView extends JFrame {
     private void refreshAisles() {
         try {
             aisles.clear();
-            aisles.addAll(aisleDAO.getAllAisles());
+            List<Aisle> loadedAisles = aisleDAO.getAllAisles();
+            if (assignedManager != null && !assignedManager.trim().isEmpty()) {
+                for (Aisle aisle : loadedAisles) {
+                    if (aisle.getAisleChief() != null
+                            && aisle.getAisleChief().trim().equalsIgnoreCase(assignedManager.trim())) {
+                        aisles.add(aisle);
+                    }
+                }
+            } else {
+                aisles.addAll(loadedAisles);
+            }
             aisleModel.setRowCount(0);
             for (Aisle aisle : aisles) {
                 aisleModel.addRow(new Object[] { aisle.getAisleCode(), aisle.getAisleName(), aisle.getCategory(),
@@ -286,7 +306,7 @@ public class AisleView extends JFrame {
             double total = aisleDAO.getProductsForAisle(selectedAisle.getAisleCode()).stream()
                     .mapToDouble(product -> product.getSellingPrice() * product.getStockQuantity()).sum();
             JOptionPane.showMessageDialog(this,
-                    String.format("Inventory value for %s: %.0f FCFA", selectedAisle.getAisleName(), total),
+                    String.format("Inventory value for %s: %.2f USD", selectedAisle.getAisleName(), total),
                     "Stock Value", JOptionPane.INFORMATION_MESSAGE);
         } catch (IllegalStateException exception) {
             showError(exception.getMessage());

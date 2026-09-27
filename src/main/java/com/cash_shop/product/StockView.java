@@ -4,6 +4,8 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.FlowLayout;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,6 +14,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.Timer;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 
@@ -40,6 +43,7 @@ public class StockView extends JFrame {
         }
     };
     private final JTable table = createTable(tableModel);
+    private final Timer refreshTimer = new Timer(5000, event -> refreshStock(false));
 
     public StockView() {
         setTitle("Stock Management");
@@ -48,6 +52,13 @@ public class StockView extends JFrame {
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         buildUI();
         refreshStock();
+        refreshTimer.start();
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosed(WindowEvent event) {
+                refreshTimer.stop();
+            }
+        });
     }
 
     private void buildUI() {
@@ -110,6 +121,10 @@ public class StockView extends JFrame {
     }
 
     private void refreshStock() {
+        refreshStock(true);
+    }
+
+    private void refreshStock(boolean showError) {
         try {
             products.clear();
             products.addAll(productDAO.getAllProducts());
@@ -118,11 +133,18 @@ public class StockView extends JFrame {
                 int quantity = product.getStockQuantity();
                 String status = quantity <= MINIMUM_STOCK ? "LOW" : quantity <= 20 ? "MEDIUM" : "OK";
                 tableModel.addRow(new Object[] { product.getReference(), product.getDesignation(), quantity,
-                        MINIMUM_STOCK, status });
+                        MINIMUM_STOCK, status, productCategory(product) });
             }
         } catch (IllegalStateException exception) {
-            showError(exception.getMessage());
+            if (showError) showError(exception.getMessage());
         }
+    }
+
+    private String productCategory(Product product) {
+        if (product instanceof FreshProduct) return "Fresh";
+        if (product instanceof ElectronicProduct) return "Electronic";
+        if (product instanceof ArtisanalProduct) return "Artisanal";
+        return "Standard";
     }
 
     private void changeStock(boolean stockIn) {

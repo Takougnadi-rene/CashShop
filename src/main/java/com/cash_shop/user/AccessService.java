@@ -10,6 +10,7 @@ public class AccessService {
     public enum Module {
         DASHBOARD,
         EMPLOYEES,
+        USERS,
         CUSTOMERS,
         PRODUCTS,
         STOCK,
@@ -24,11 +25,14 @@ public class AccessService {
         }
         switch (role) {
             case ADMIN:
-                return Collections.unmodifiableSet(EnumSet.of(Module.DASHBOARD, Module.EMPLOYEES,
+                return Collections.unmodifiableSet(EnumSet.of(Module.DASHBOARD, Module.EMPLOYEES, Module.USERS,
                         Module.CUSTOMERS, Module.PRODUCTS, Module.STOCK, Module.AISLES, Module.SUPPLIERS));
             case MANAGER:
+            case ACCOUNTANT:
                 return Collections.unmodifiableSet(EnumSet.of(Module.DASHBOARD, Module.EMPLOYEES,
-                        Module.PRODUCTS, Module.STOCK));
+                        Module.CUSTOMERS, Module.PRODUCTS, Module.STOCK, Module.AISLES, Module.SUPPLIERS));
+            case STOREKEEPER:
+                return Collections.unmodifiableSet(EnumSet.of(Module.PRODUCTS, Module.STOCK));
             case COUNTER:
             case CASHIER:
                 return Collections.unmodifiableSet(EnumSet.of(Module.SALES));

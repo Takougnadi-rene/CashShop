@@ -21,7 +21,7 @@ public class SaleDAO {
             ps.setString(3, sale.getCashier().getMatricule());
             ps.executeUpdate();
         } catch (SQLException e) {
-            e.printStackTrace();
+           // e.printStackTrace();
         }
     }
 
@@ -34,7 +34,7 @@ public class SaleDAO {
             ps.setInt(3, sale.getSaleId());
             ps.executeUpdate();
         } catch (SQLException e) {
-            e.printStackTrace();
+           // e.printStackTrace();
         }
     }
 
@@ -45,7 +45,7 @@ public class SaleDAO {
             ps.setInt(1, saleId);
             ps.executeUpdate();
         } catch (SQLException e) {
-            e.printStackTrace();
+            //e.printStackTrace();
         }
     }
 
@@ -59,7 +59,7 @@ public class SaleDAO {
                 sale = new Sale(results.getInt("sale_id"), results.getDate("sale_date").toLocalDate(), null);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+           // e.printStackTrace();
         }
         return sale;
     }
@@ -75,9 +75,20 @@ public class SaleDAO {
                 sales.add(sale);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+           // e.printStackTrace();
         }
         return sales;
+    }
+
+    public int getSalesCount() {
+        String sql = "SELECT COUNT(*) FROM sales";
+        try (Connection connection = DBConnection.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet results = statement.executeQuery()) {
+            return results.next() ? results.getInt(1) : 0;
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to load sales count.", exception);
+        }
     }
 
     // concerning products of a sale
@@ -89,7 +100,7 @@ public class SaleDAO {
             ps.setInt(2, product.getReference());
             ps.executeUpdate();
         } catch (SQLException e) {
-            e.printStackTrace();
+           // e.printStackTrace();
         }
     }
 
@@ -101,7 +112,7 @@ public class SaleDAO {
             ps.setInt(2, product.getReference());
             ps.executeUpdate();
         } catch (SQLException e) {
-            e.printStackTrace();
+            //e.printStackTrace();
         }
     }
 
@@ -123,7 +134,7 @@ public class SaleDAO {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            //e.printStackTrace();
         }
         return products;
     }

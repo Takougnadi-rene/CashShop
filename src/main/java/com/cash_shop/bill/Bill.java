@@ -5,9 +5,9 @@ import java.util.Date;
 
 import com.cash_shop.customer.Customer;
 import com.cash_shop.employee.Employee;
+import com.cash_shop.product.Product;
 import com.cash_shop.sale.Sale;
 import com.cash_shop.sale.SaleService;
-import com.cash_shop.product.Product;
 
 public class Bill {
     private int billNumber;
@@ -46,16 +46,16 @@ public class Bill {
                 cashier != null ? cashier.getFirstName() + " " + cashier.getLastName() : "N/A",
                 customer != null ? customer.getName() : "Walk-in"));
         sb.append("\n------------------------------------------------\n");
-        sb.append(String.format("%-20s %5s %15s\n", "PRODUCT", "QTY", "PRICE (FCFA)"));
+        sb.append(String.format("%-20s %5s %15s\n", "PRODUCT", "QTY", "PRICE (USD)"));
         sb.append("------------------------------------------------\n");
 
         for (Product product : sale.getProductsList()) {
-            sb.append(String.format("%-20s %5d %15.0f F\n",
+            sb.append(String.format("%-20s %5d %15.2f USD\n",
                     product.getDesignation(), 1, product.getSellingPrice()));
         }
 
         sb.append("\n------------------------------------------------\n");
-        sb.append(String.format("TOTAL DUE:               %15.0f FCFA\n", total));
+        sb.append(String.format("TOTAL DUE:               %15.2f USD\n", total));
         sb.append("\n================================================\n");
         sb.append("         Thank you for shopping with us!\n");
         sb.append("         See you again soon.\n");

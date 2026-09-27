@@ -19,16 +19,17 @@ import javax.swing.table.DefaultTableModel;
 
 import com.cash_shop.common.StyleManager;
 import com.cash_shop.product.Product;
+import com.cash_shop.product.ProductDAO;
 
 public class SaleView extends JFrame {
 
     private final List<Product> catalog = new ArrayList<>();
     private final List<Product> basket = new ArrayList<>();
     private final JComboBox<Product> cbProducts = new JComboBox<>();
-        private final javax.swing.JLabel totalLabel = StyleManager.createLabel("TOTAL: 0.00 FCFA",
+            private final javax.swing.JLabel totalLabel = StyleManager.createLabel("TOTAL: 0.00 USD",
             StyleManager.ACCENT_GOLD, StyleManager.FONT_HEADER);
     private final DefaultTableModel basketModel = new DefaultTableModel(
-            new String[]{"Product", "Unit Price", "Quantity", "Subtotal"}, 0) {
+                new String[]{"Product", "Unit Price (USD)", "Quantity", "Subtotal (USD)"}, 0) {
         @Override
         public boolean isCellEditable(int row, int column) {
             return false;
@@ -48,10 +49,12 @@ public class SaleView extends JFrame {
     }
 
     private void initCatalogue() {
-        catalog.add(new Product(1001, "Pain complet", 230.0, 350.0, 25));
-        catalog.add(new Product(1002, "Tomates", 180.0, 260.0, 40));
-        catalog.add(new Product(1003, "Laptop X15", 780000.0, 980000.0, 12));
-        catalog.add(new Product(1004, "Souris sans fil", 22000.0, 35000.0, 18));
+        try {
+            catalog.addAll(new ProductDAO().getAllProducts());
+        } catch (IllegalStateException exception) {
+            javax.swing.JOptionPane.showMessageDialog(this, exception.getMessage(), "Catalog Error",
+                    javax.swing.JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void buildUI() {
@@ -118,6 +121,13 @@ public class SaleView extends JFrame {
             return;
         }
         Product product = (Product) selected;
+        long quantityInBasket = basket.stream()
+            .filter(item -> item.getReference() == product.getReference()).count();
+        if (quantityInBasket >= product.getStockQuantity()) {
+            javax.swing.JOptionPane.showMessageDialog(this, "No more stock is available for this product.",
+                "Stock limit", javax.swing.JOptionPane.WARNING_MESSAGE);
+            return;
+        }
         basket.add(product);
         basketModel.addRow(new Object[]{product.getDesignation(), product.getSellingPrice(), 1, product.getSellingPrice()});
         updateTotal();
@@ -137,7 +147,7 @@ public class SaleView extends JFrame {
         for (int i = 0; i < basketModel.getRowCount(); i++) {
             total += (double) basketModel.getValueAt(i, 3);
         }
-        javax.swing.JOptionPane.showMessageDialog(this, "Sale completed. Total due: " + total + " FCFA");
+        javax.swing.JOptionPane.showMessageDialog(this, String.format("Sale completed. Total due: %.2f USD", total));
         basket.clear();
         basketModel.setRowCount(0);
         updateTotal();
@@ -148,7 +158,7 @@ public class SaleView extends JFrame {
         for (int row = 0; row < basketModel.getRowCount(); row++) {
             total += ((Number) basketModel.getValueAt(row, 3)).doubleValue();
         }
-        totalLabel.setText(String.format("TOTAL: %.2f FCFA", total));
+        totalLabel.setText(String.format("TOTAL: %.2f USD", total));
     }
 
     public static void main(String[] args) {

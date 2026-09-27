@@ -1,13 +1,14 @@
 package com.cash_shop.employee;
 
 import com.cash_shop.employee.Employee.Role;
+import com.cash_shop.user.AccountCredentials;
 
 public class EmployeeService {
 
     // add
-    public void addEmployee(String matricule, String firstName, String lastName, String email, double salary,
+    public AccountCredentials addEmployee(String matricule, String firstName, String lastName, String email, double salary,
             Role role) {
-        new EmployeeDAO().insertEmployee(matricule, firstName, lastName, email, salary, role);
+        return new EmployeeDAO().insertEmployee(matricule, firstName, lastName, email, salary, role);
     }
 
     // remove
