@@ -37,7 +37,6 @@ public class ProductView extends JFrame {
     private DefaultTableModel tableModel;
 
     public ProductView() {
-        initDemoProducts();
         setTitle("Product Management");
         setSize(980, 560);
         setLocationRelativeTo(null);
@@ -45,13 +44,6 @@ public class ProductView extends JFrame {
         setResizable(false);
         buildUI();
         refreshTable();
-    }
-
-    private void initDemoProducts() {
-        products.add(new Product(1001, "Whole grain bread", "Bakery", "Food", 230.0, 350.0, 25));
-        products.add(new Product(1002, "Tomatoes", "Fresh", "Food", 180.0, 260.0, 40));
-        products.add(new Product(1003, "Laptop X15", "Electronics", "Computers", 780000.0, 980000.0, 12));
-        products.add(new Product(1004, "Wireless mouse", "Accessory", "Computers", 22000.0, 35000.0, 18));
     }
 
     private void buildUI() {
@@ -184,14 +176,10 @@ public class ProductView extends JFrame {
         }
         for (Product product : products) {
             if (String.valueOf(product.getReference()).contains(keyword)
-                    || product.getDesignation().toLowerCase().contains(keyword)
-                    || product.getType().toLowerCase().contains(keyword)
-                    || product.getCategory().toLowerCase().contains(keyword)) {
+                    || product.getDesignation().toLowerCase().contains(keyword)) {
                 tableModel.addRow(new Object[]{
                     product.getReference(),
                     product.getDesignation(),
-                    product.getType(),
-                    product.getCategory(),
                     product.getPurchasePrice(),
                     product.getSellingPrice(),
                     product.getStockQuantity()
@@ -221,7 +209,7 @@ public class ProductView extends JFrame {
             if (purchase <= 0 || selling <= 0 || stock < 0) {
                 throw new IllegalArgumentException("Price or stock value is invalid.");
             }
-            Product product = new Product(reference, designation, type, category, purchase, selling, stock);
+            Product product = new Product(reference, designation, purchase, selling, stock);
             return product;
         } catch (NumberFormatException ex) {
             throw new IllegalArgumentException("Check the numeric values.");
@@ -234,8 +222,6 @@ public class ProductView extends JFrame {
             tableModel.addRow(new Object[]{
                 product.getReference(),
                 product.getDesignation(),
-                product.getType(),
-                product.getCategory(),
                 product.getPurchasePrice(),
                 product.getSellingPrice(),
                 product.getStockQuantity()

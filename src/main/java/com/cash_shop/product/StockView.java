@@ -118,7 +118,7 @@ public class StockView extends JFrame {
                 int quantity = product.getStockQuantity();
                 String status = quantity <= MINIMUM_STOCK ? "LOW" : quantity <= 20 ? "MEDIUM" : "OK";
                 tableModel.addRow(new Object[] { product.getReference(), product.getDesignation(), quantity,
-                        MINIMUM_STOCK, status, product.getCategory() });
+                        MINIMUM_STOCK, status });
             }
         } catch (IllegalStateException exception) {
             showError(exception.getMessage());

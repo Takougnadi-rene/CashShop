@@ -1,31 +1,36 @@
 package com.cash_shop.bill;
 
-import java.util.ArrayList;
-import java.util.Date;
-
 import com.cash_shop.customer.Customer;
 import com.cash_shop.employee.Employee;
-import com.cash_shop.product.Product;
+import com.cash_shop.sale.Sale;
+
+import java.util.Date;
 
 public class BillService {
-    public Bill createBill(int billId, Customer customer, Employee cashier, ArrayList<Product> purchasedItems) {
-        return new Bill(billId, new Date(), customer, cashier, purchasedItems);
+
+    private int billNumber = 0;
+    public void newBill(Date billDate, Customer customer, Employee cashier, Sale purchase) {
+        this.billNumber++;
+        Bill bill = new Bill(billNumber, billDate, customer, cashier, purchase);
+        BillDAO billDAO = new BillDAO();
+        billDAO.addBill(bill);
     }
 
-    public double calculateTotal(Bill bill) {
-        if (bill == null || bill.getPurchasedItems() == null) {
-            return 0.0;
-        }
-        double total = 0.0;
-        for (Product product : bill.getPurchasedItems()) {
-            total += product.getSellingPrice();
-        }
-        return total;
-    }
-
-    public void printBill(Bill bill) {
+    public void affichageBill(int billNumber) {
+        BillDAO billDAO = new BillDAO();
+        Bill bill = billDAO.getBill(billNumber);
         if (bill == null) {
-            System.out.println("Aucune facture à afficher.");
+            System.out.println("Bill #" + billNumber + " not found.");
+            return;
+        }
+        System.out.println(bill.genererFacture());
+    }
+
+    public void printBill(int billNumber) {
+        BillDAO billDAO = new BillDAO();
+        Bill bill = billDAO.getBill(billNumber);
+        if (bill == null) {
+            System.out.println("Bill #" + billNumber + " not found.");
             return;
         }
         System.out.println(bill.genererFacture());

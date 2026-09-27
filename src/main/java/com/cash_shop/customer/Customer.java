@@ -2,7 +2,8 @@ package com.cash_shop.customer;
 
 import java.util.ArrayList;
 
-import com.cash_shop.purchase.Purchase;
+import com.cash_shop.sale.Sale;
+
 
 public class Customer {
     private final int customerId;
@@ -11,7 +12,7 @@ public class Customer {
     private String phoneNumber;
     private double totalSpent;
     private int fifelityPoints;
-    private ArrayList<Purchase> purchaseHistory;
+    private ArrayList<Sale> purchaseHistory;
 
     public Customer(int customerId, String name, String email, String phoneNumber, double totalSpent) {
         this.customerId = customerId;
@@ -24,69 +25,35 @@ public class Customer {
 
     // getter and setters
 
-    public String getName() {
-        return name;
-    }
+    public int getCustomerId() {return customerId;}
+    
+    public String getName() {return name;}
+    public void setName(String name) { this.name = name; }
 
-    public int getCustomerId() {
-        return customerId;
-    }
+    public String getEmail() { return email;}
+    public void setEmail(String email) { this.email = email;}
 
-    public void setName(String name) {
-        this.name = name;
-    }
+    public String getPhoneNumber() { return phoneNumber;}
+    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber;}
 
-    public String getEmail() {
-        return email;
-    }
+    public double getTotalSpent() { return totalSpent;}
+    public void setTotalSpent(double totalSpent) { this.totalSpent = totalSpent;}
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
+    public int getFifelityPoints() { return fifelityPoints;}
 
-    public String getPhoneNumber() {
-        return phoneNumber;
-    }
+    public int getLoyaltyPoints() { return fifelityPoints;}
 
-    public void setPhoneNumber(String phoneNumber) {
-        this.phoneNumber = phoneNumber;
-    }
+    public void setFifelityPoints(int fifelityPoints) { this.fifelityPoints = fifelityPoints;}
 
-    public double getTotalSpent() {
-        return totalSpent;
-    }
+    public void setLoyaltyPoints(int loyaltyPoints) { this.fifelityPoints = loyaltyPoints;}
 
-    public void setTotalSpent(double totalSpent) {
-        this.totalSpent = totalSpent;
-    }
+    public ArrayList<Sale> getPurchaseHistory() { return purchaseHistory;}
 
-    public int getFifelityPoints() {
-        return fifelityPoints;
-    }
+    public void setPurchaseHistory(ArrayList<Sale> purchaseHistory) { this.purchaseHistory = purchaseHistory != null ? purchaseHistory : new ArrayList<>();}
 
-    public int getLoyaltyPoints() {
-        return fifelityPoints;
-    }
-
-    public void setFifelityPoints(int fifelityPoints) {
-        this.fifelityPoints = fifelityPoints;
-    }
-
-    public void setLoyaltyPoints(int loyaltyPoints) {
-        this.fifelityPoints = loyaltyPoints;
-    }
-
-    public ArrayList<Purchase> getPurchaseHistory() {
-        return purchaseHistory;
-    }
-
-    public void setPurchaseHistory(ArrayList<Purchase> purchaseHistory) {
-        this.purchaseHistory = purchaseHistory != null ? purchaseHistory : new ArrayList<>();
-    }
-
-    public void addPurchase(Purchase purchase) {
-        if (purchase != null) {
-            purchaseHistory.add(purchase);
+    public void addPurchase(Sale sale) {
+        if (sale != null) {
+            purchaseHistory.add(sale);
         }
     }
 }

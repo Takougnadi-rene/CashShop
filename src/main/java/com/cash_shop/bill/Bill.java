@@ -1,70 +1,55 @@
 package com.cash_shop.bill;
 
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
 
 import com.cash_shop.customer.Customer;
 import com.cash_shop.employee.Employee;
+import com.cash_shop.sale.Sale;
+import com.cash_shop.sale.SaleService;
 import com.cash_shop.product.Product;
 
 public class Bill {
-    private int billId;
+    private int billNumber;
     private Date billDate;
     private Customer customer;
     private Employee cashier;
-    private ArrayList<Product> purchasedItems;
+    private Sale sale;
 
-    public Bill(int billId, Date billDate, Customer customer, Employee cashier, ArrayList<Product> purchasedItems) {
-        this.billId = billId;
+    public Bill(int billNumber, Date billDate, Customer customer, Employee cashier, Sale sale) {
+        this.billNumber = billNumber;
         this.billDate = billDate;
         this.customer = customer;
         this.cashier = cashier;
-        this.purchasedItems = purchasedItems != null ? purchasedItems : new ArrayList<>();
+        this.sale = sale;
     }
 
-    public int getBillId() {return billId;}
-    public void setBillId(int billId) {this.billId = billId;}
+    public int getBillNumber() {return billNumber;}
     public Date getBillDate() {return billDate;}
-    public void setBillDate(Date billDate) {this.billDate = billDate;}
     public Customer getCustomer() {return customer;}
-    public void setCustomer(Customer customer) {this.customer = customer;}
     public Employee getCashier() {return cashier;}
+    public Sale getSale() {return sale;}
 
-    public void setCashier(Employee cashier) {
-        this.cashier = cashier;
-    }
-
-    public ArrayList<Product> getPurchasedItems() {
-        return purchasedItems;
-    }
-
-    public void setPurchasedItems(ArrayList<Product> purchasedItems) {
-        this.purchasedItems = purchasedItems != null ? purchasedItems : new ArrayList<>();
-    }
-
+    //bill generator method
     public String genererFacture() {
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
         StringBuilder sb = new StringBuilder();
-        double total = 0.0;
+        double total = new SaleService().calculateTotal(sale);
 
-        for (Product product : purchasedItems) {
-            total += product.getSellingPrice();
-        }
 
         sb.append("================================================\n");
         sb.append("        SUPER MARKET PLUS\n");
         sb.append("         Purchase Receipt\n");
         sb.append("================================================\n\n");
-        sb.append(String.format("Receipt No.: %04d        Date: %s\n", billId, sdf.format(billDate)));
+        sb.append(String.format("Receipt No.: %04d        Date: %s\n", billNumber, sdf.format(billDate)));
         sb.append(String.format("Cashier    : %-15s Customer: %s\n",
                 cashier != null ? cashier.getFirstName() + " " + cashier.getLastName() : "N/A",
-            customer != null ? customer.getName() : "Walk-in"));
+                customer != null ? customer.getName() : "Walk-in"));
         sb.append("\n------------------------------------------------\n");
         sb.append(String.format("%-20s %5s %15s\n", "PRODUCT", "QTY", "PRICE (FCFA)"));
         sb.append("------------------------------------------------\n");
 
-        for (Product product : purchasedItems) {
+        for (Product product : sale.getProductsList()) {
             sb.append(String.format("%-20s %5d %15.0f F\n",
                     product.getDesignation(), 1, product.getSellingPrice()));
         }

@@ -15,7 +15,7 @@ public class CustomerDAO {
             throws SQLException {
         String sql = "INSERT INTO customers(customerId, name, email, phoneNumber, total_spent, fidelity_points) VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection connection = DBConnection.getConnection();
-            PreparedStatement ps = connection.prepareStatement(sql)) {
+                PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setInt(1, customerId);
             ps.setString(2, name);
             ps.setString(3, email);
@@ -29,7 +29,7 @@ public class CustomerDAO {
     public void deleteCustomer(int id) throws SQLException {
         String sql = "DELETE FROM customers WHERE id = ?";
         try (Connection connection = DBConnection.getConnection();
-            PreparedStatement ps = connection.prepareStatement(sql)) {
+                PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setInt(1, id);
             ps.executeUpdate();
         }
@@ -38,7 +38,7 @@ public class CustomerDAO {
     public void addFidelityPoint(int customerId, int points) throws SQLException {
         String sql = "UPDATE customers SET fidelity_points = fidelity_points + ? WHERE id = ?";
         try (Connection connection = DBConnection.getConnection();
-            PreparedStatement ps = connection.prepareStatement(sql)) {
+                PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setInt(1, points);
             ps.setInt(2, customerId);
             ps.executeUpdate();
@@ -48,7 +48,7 @@ public class CustomerDAO {
     public void removeFidelityPoint(int customerId, int points) throws SQLException {
         String sql = "UPDATE customers SET fidelity_points = fidelity_points - ? WHERE id = ?";
         try (Connection connection = DBConnection.getConnection();
-            PreparedStatement ps = connection.prepareStatement(sql)) {
+                PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setInt(1, points);
             ps.setInt(2, customerId);
             ps.executeUpdate();
@@ -58,7 +58,7 @@ public class CustomerDAO {
     public void updateTotalSpent(int customerId, double amount) throws SQLException {
         String sql = "UPDATE customers SET total_spent = total_spent + ? WHERE id = ?";
         try (Connection connection = DBConnection.getConnection();
-            PreparedStatement ps = connection.prepareStatement(sql)) {
+                PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setDouble(1, amount);
             ps.setInt(2, customerId);
             ps.executeUpdate();
@@ -81,5 +81,23 @@ public class CustomerDAO {
             throw new IllegalStateException("Unable to load customers from the database.", exception);
         }
         return customers;
+    }
+
+    public Customer getCustomerByPhone(String phoneNumber) {
+        String sql = "SELECT id, name, phone, total_spent, fidelity_points FROM customers WHERE phone = ?";
+        try (Connection connection = DBConnection.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql);) {
+            statement.setString(1, phoneNumber);
+            ResultSet results = statement.executeQuery();
+            if (results.next()) {
+                Customer customer = new Customer(results.getInt("id"), results.getString("name"), "",
+                        results.getString("phone"), results.getDouble("total_spent"));
+                customer.setLoyaltyPoints(results.getInt("fidelity_points"));
+                return customer;
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to load customer from the database.", exception);
+        }
+        return null;
     }
 }

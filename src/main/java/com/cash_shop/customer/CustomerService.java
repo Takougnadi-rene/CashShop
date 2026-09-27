@@ -2,7 +2,7 @@ package com.cash_shop.customer;
 
 import java.util.ArrayList;
 
-import com.cash_shop.purchase.Purchase;
+import com.cash_shop.sale.Sale;
 
 public class CustomerService {
     private final ArrayList<Customer> customers = new ArrayList<>();
@@ -34,7 +34,7 @@ public class CustomerService {
         customer.setLoyaltyPoints(customer.getLoyaltyPoints() + points);
     }
 
-    public void registerPurchase(Customer customer, Purchase purchase) {
+    public void registerPurchase(Customer customer, Sale purchase) {
         if (customer == null || purchase == null) {
             throw new IllegalArgumentException("Customer and purchase are required");
         }
@@ -44,12 +44,12 @@ public class CustomerService {
         addLoyaltyPoints(customer, earnedPoints);
     }
 
-    public double calculatePurchaseTotal(Purchase purchase) {
-        if (purchase == null || purchase.getCartItems() == null) {
+    public double calculatePurchaseTotal(Sale purchase) {
+        if (purchase == null || purchase.getProductsList() == null) {
             return 0.0;
         }
         double total = 0.0;
-        for (var product : purchase.getCartItems()) {
+        for (var product : purchase.getProductsList()) {
             total += product.getSellingPrice();
         }
         return total;

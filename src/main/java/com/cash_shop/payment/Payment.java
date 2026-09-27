@@ -1,61 +1,38 @@
 package com.cash_shop.payment;
 
+import java.time.LocalDate;
 import java.util.Date;
 
-import com.cash_shop.purchase.Purchase;
+import com.cash_shop.sale.Sale;
 
 public class Payment {
-    private int paymentId;
+    private int paymentNumber;
     private double amount;
-    private PaymentMethod paymentMethod;
     private Date paymentDate;
-    public enum PaymentMethod {
+    private Sale sale;
+    private String paymentMode;
+    public enum PaymentMode {
         CASH,
         CREDIT_CARD,
-        DEBIT_CARD,
-        MOBILE_PAYMENT,
-        ONLINE_TRANSFER
+        MOBILE_PAYMENT
     }
-    private Purchase purchase;
 
-    public Payment(int paymentId, double amount, PaymentMethod paymentMethod, Date paymentDate, Purchase purchase) {
-        this.paymentId = paymentId;
+    public Payment(int paymentNumber, double amount, LocalDate paymentDate, Sale sale, PaymentMode paymentMode) {
+        this.paymentNumber = paymentNumber;
         this.amount = amount;
-        this.paymentMethod = paymentMethod;
-        this.paymentDate = paymentDate;
-        this.purchase = purchase;
+        this.paymentDate = java.sql.Date.valueOf(paymentDate);
+        this.sale = sale;
+        this.paymentMode = paymentMode.name();
     }
 
-
-    public int getPaymentId() {
-        return paymentId;
-    }
-    public void setPaymentId(int paymentId) {
-        this.paymentId = paymentId;
-    }
-    public double getAmount() {
-        return amount;
-    }
-    public void setAmount(double amount) {
-        this.amount = amount;
-    }
-    public PaymentMethod getPaymentMethod() {
-        return paymentMethod;
-    }
-    public void setPaymentMethod(PaymentMethod paymentMethod) {
-        this.paymentMethod = paymentMethod;
-    }
-    public Date getPaymentDate() {
-        return paymentDate;
-    }
-    public void setPaymentDate(Date paymentDate) {
-        this.paymentDate = paymentDate;
-    }
-    public Purchase getPurchase() {
-        return purchase;
-    }
-    public void setPurchase(Purchase purchase) {
-        this.purchase = purchase;
-    }
-    
+    public int getPaymentNumber() {return paymentNumber;}
+    public void setPaymentNumber(int paymentNumber) {this.paymentNumber = paymentNumber;}
+    public double getAmount() {return amount;}
+    public void setAmount(double amount) {this.amount = amount;}
+    public PaymentMode getPaymentMode() {return PaymentMode.valueOf(this.paymentMode);}
+    public void setPaymentMode(PaymentMode paymentMode) {this.paymentMode = paymentMode.name();}
+    public Date getPaymentDate() {return paymentDate;}
+    public void setPaymentDate(Date paymentDate) {this.paymentDate = paymentDate;}
+    public Sale getSale() {return sale;}
+    public void setSale(Sale sale) {this.sale = sale;}
 }
