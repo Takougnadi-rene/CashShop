@@ -192,7 +192,7 @@ public class UserView extends JFrame {
     private void openHome(User authenticatedUser) {
         Role role = authenticatedUser.getRole();
         JFrame landingWindow = switch (role) {
-            case CASHIER, COUNTER -> new SaleView();
+            case CASHIER, COUNTER -> new SaleView(authenticatedUser.getEmail());
             case AISLE_MANAGER -> new AisleView(authenticatedUser.getEmployeeName());
             default -> null;
         };

@@ -2,6 +2,8 @@ package com.cash_shop.bill;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import com.cash_shop.customer.Customer;
 import com.cash_shop.employee.Employee;
@@ -46,16 +48,23 @@ public class Bill {
                 cashier != null ? cashier.getFirstName() + " " + cashier.getLastName() : "N/A",
                 customer != null ? customer.getName() : "Walk-in"));
         sb.append("\n------------------------------------------------\n");
-        sb.append(String.format("%-20s %5s %15s\n", "PRODUCT", "QTY", "PRICE (USD)"));
+        sb.append(String.format("%-20s %5s %15s\n", "PRODUCT", "QTY", "PRICE (FCFA)"));
         sb.append("------------------------------------------------\n");
 
+        Map<Integer, Product> productsByReference = new LinkedHashMap<>();
+        Map<Integer, Integer> quantitiesByReference = new LinkedHashMap<>();
         for (Product product : sale.getProductsList()) {
-            sb.append(String.format("%-20s %5d %15.2f USD\n",
-                    product.getDesignation(), 1, product.getSellingPrice()));
+            productsByReference.putIfAbsent(product.getReference(), product);
+            quantitiesByReference.merge(product.getReference(), 1, Integer::sum);
+        }
+        for (Map.Entry<Integer, Product> entry : productsByReference.entrySet()) {
+            Product product = entry.getValue();
+            sb.append(String.format("%-20s %5d %15.0f FCFA\n",
+                    product.getDesignation(), quantitiesByReference.get(entry.getKey()), product.getSellingPrice()));
         }
 
         sb.append("\n------------------------------------------------\n");
-        sb.append(String.format("TOTAL DUE:               %15.2f USD\n", total));
+        sb.append(String.format("TOTAL DUE:               %15.0f FCFA\n", total));
         sb.append("\n================================================\n");
         sb.append("         Thank you for shopping with us!\n");
         sb.append("         See you again soon.\n");

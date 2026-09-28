@@ -13,21 +13,26 @@ public class CustomerDAO {
 
     public void insertCustomer(int customerId, String name, String email, String phoneNumber, double totalSpent)
             throws SQLException {
-        String sql = "INSERT INTO customers(customerId, name, email, phoneNumber, total_spent, fidelity_points) VALUES (?, ?, ?, ?, ?, ?)";
+        insertCustomer(customerId, name, phoneNumber, totalSpent);
+    }
+
+    public void insertCustomer(int customerId, String name, String phoneNumber, double totalSpent)
+            throws SQLException {
+        String sql = "INSERT INTO customers(customer_id, name, phone_number, total_spent, fidelity_points) "
+                + "VALUES (?, ?, ?, ?, ?)";
         try (Connection connection = DBConnection.getConnection();
                 PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setInt(1, customerId);
             ps.setString(2, name);
-            ps.setString(3, email);
-            ps.setString(4, phoneNumber);
-            ps.setDouble(5, totalSpent);
-            ps.setInt(6, 0);
+            ps.setString(3, phoneNumber);
+            ps.setDouble(4, totalSpent);
+            ps.setInt(5, 0);
             ps.executeUpdate();
         }
     }
 
     public void deleteCustomer(int id) throws SQLException {
-        String sql = "DELETE FROM customers WHERE id = ?";
+        String sql = "DELETE FROM customers WHERE customer_id = ?";
         try (Connection connection = DBConnection.getConnection();
                 PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setInt(1, id);
@@ -36,7 +41,7 @@ public class CustomerDAO {
     }
 
     public void addFidelityPoint(int customerId, int points) throws SQLException {
-        String sql = "UPDATE customers SET fidelity_points = fidelity_points + ? WHERE id = ?";
+        String sql = "UPDATE customers SET fidelity_points = fidelity_points + ? WHERE customer_id = ?";
         try (Connection connection = DBConnection.getConnection();
                 PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setInt(1, points);
@@ -46,7 +51,7 @@ public class CustomerDAO {
     }
 
     public void removeFidelityPoint(int customerId, int points) throws SQLException {
-        String sql = "UPDATE customers SET fidelity_points = fidelity_points - ? WHERE id = ?";
+        String sql = "UPDATE customers SET fidelity_points = fidelity_points - ? WHERE customer_id = ?";
         try (Connection connection = DBConnection.getConnection();
                 PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setInt(1, points);
@@ -56,7 +61,7 @@ public class CustomerDAO {
     }
 
     public void updateTotalSpent(int customerId, double amount) throws SQLException {
-        String sql = "UPDATE customers SET total_spent = total_spent + ? WHERE id = ?";
+        String sql = "UPDATE customers SET total_spent = total_spent + ? WHERE customer_id = ?";
         try (Connection connection = DBConnection.getConnection();
                 PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setDouble(1, amount);
@@ -66,14 +71,15 @@ public class CustomerDAO {
     }
 
     public List<Customer> getAllCustomers() {
-        String sql = "SELECT id, name, phone, total_spent, fidelity_points FROM customers ORDER BY id";
+        String sql = "SELECT customer_id, name, phone_number, total_spent, fidelity_points "
+            + "FROM customers ORDER BY customer_id";
         List<Customer> customers = new ArrayList<>();
         try (Connection connection = DBConnection.getConnection();
                 PreparedStatement statement = connection.prepareStatement(sql);
                 ResultSet results = statement.executeQuery()) {
             while (results.next()) {
-                Customer customer = new Customer(results.getInt("id"), results.getString("name"), "",
-                        results.getString("phone"), results.getDouble("total_spent"));
+                Customer customer = new Customer(results.getInt("customer_id"), results.getString("name"), "",
+                    results.getString("phone_number"), results.getDouble("total_spent"));
                 customer.setLoyaltyPoints(results.getInt("fidelity_points"));
                 customers.add(customer);
             }
@@ -84,14 +90,15 @@ public class CustomerDAO {
     }
 
     public Customer getCustomerByPhone(String phoneNumber) {
-        String sql = "SELECT id, name, phone, total_spent, fidelity_points FROM customers WHERE phone = ?";
+        String sql = "SELECT customer_id, name, phone_number, total_spent, fidelity_points "
+            + "FROM customers WHERE phone_number = ?";
         try (Connection connection = DBConnection.getConnection();
                 PreparedStatement statement = connection.prepareStatement(sql);) {
             statement.setString(1, phoneNumber);
             ResultSet results = statement.executeQuery();
             if (results.next()) {
-                Customer customer = new Customer(results.getInt("id"), results.getString("name"), "",
-                        results.getString("phone"), results.getDouble("total_spent"));
+                Customer customer = new Customer(results.getInt("customer_id"), results.getString("name"), "",
+                    results.getString("phone_number"), results.getDouble("total_spent"));
                 customer.setLoyaltyPoints(results.getInt("fidelity_points"));
                 return customer;
             }

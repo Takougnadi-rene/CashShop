@@ -1,105 +1,122 @@
 package com.cash_shop.bill;
 
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.ActionEvent; // ✅ Added missing import
-import java.util.Date; // ✅ Added missing import
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.print.PrinterException;
+import java.util.Date;
+
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.SwingUtilities;
+
+import com.cash_shop.common.StyleManager;
+import com.cash_shop.customer.Customer;
+import com.cash_shop.payment.Payment;
+import com.cash_shop.sale.Sale;
 
 public class BillView extends JFrame {
-
-    // --- COMPONENTS ---
-    private final JTextField billIdField = new JTextField(5);
-    private final JTextField dateField = new JTextField(10);
-    private final JTextField customerField = new JTextField(15);
-    private final JTextField cashierField = new JTextField(15);
-    private final JTextArea purchaseArea = new JTextArea(10, 30);
-
-    private final JButton btnNew = new JButton("New Bill");
-    private final JButton btnGenerate = new JButton("Generate Bill");
+    private final JTextArea receiptArea = new JTextArea();
+    private final JButton printButton = StyleManager.createButton("Print Receipt", StyleManager.ACCENT_BLUE);
 
     public BillView() {
-        setTitle("Bill Management");
-        setSize(600, 400);
+        this(null);
+    }
+
+    public BillView(Sale sale) {
+        this(sale, null, null);
+    }
+
+    public BillView(Sale sale, Customer customer, Payment.PaymentMode paymentMode) {
+        this(sale, customer, paymentMode, null);
+    }
+
+    public BillView(Sale sale, Customer customer, Payment.PaymentMode paymentMode, Double cashReceived) {
+        this(sale, customer, paymentMode, cashReceived, sale == null ? 0 : sale.getSaleId());
+        }
+
+        public BillView(Sale sale, Customer customer, Payment.PaymentMode paymentMode,
+            Double cashReceived, int billNumber) {
+        setTitle("Cash Shop - Receipt");
+        setSize(560, 620);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-
         buildUI();
+        if (sale == null) {
+            receiptArea.setText("No receipt has been generated.");
+            printButton.setEnabled(false);
+        } else {
+            Bill bill = new Bill(billNumber, new Date(), customer, sale.getCashier(), sale);
+            String receipt = bill.genererFacture();
+            if (paymentMode != null) {
+                String paymentLabel = switch (paymentMode) {
+                    case CASH -> "Cash";
+                    case CREDIT_CARD -> "Bank card";
+                    case MOBILE_PAYMENT -> "Mobile Money";
+                };
+                int totalLine = receipt.indexOf("TOTAL DUE:");
+                receipt = receipt.substring(0, totalLine)
+                        + "PAYMENT METHOD: " + paymentLabel + "\n"
+                        + receipt.substring(totalLine);
+                if (paymentMode == Payment.PaymentMode.CASH && cashReceived != null) {
+                    double change = cashReceived - new com.cash_shop.sale.SaleService().calculateTotal(sale);
+                    int dueLine = receipt.indexOf("TOTAL DUE:");
+                    receipt = receipt.substring(0, dueLine)
+                        + String.format("CASH RECEIVED: %,.0f FCFA\nCHANGE: %,.0f FCFA\n",
+                            cashReceived, change)
+                        + receipt.substring(dueLine);
+                }
+            }
+            receiptArea.setText(receipt);
+            receiptArea.setCaretPosition(0);
+        }
     }
 
     private void buildUI() {
-        JPanel mainPanel = new JPanel(new BorderLayout());
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
+        mainPanel.setBackground(StyleManager.BG_DARK);
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
 
-        // --- TOP PANEL (Bill Info) ---
-        JPanel topPanel = new JPanel(new GridLayout(2, 2, 10, 10));
+        JPanel receiptPanel = StyleManager.createCard();
+        receiptPanel.setLayout(new BorderLayout());
+        receiptArea.setEditable(false);
+        receiptArea.setBackground(StyleManager.BG_PANEL);
+        receiptArea.setForeground(StyleManager.TEXT_PRIMARY);
+        receiptArea.setCaretColor(StyleManager.TEXT_PRIMARY);
+        receiptArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
+        receiptArea.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+        receiptPanel.add(new JScrollPane(receiptArea), BorderLayout.CENTER);
 
-        // Row 1
-        topPanel.add(new JLabel("Bill ID:"));
-        topPanel.add(billIdField);
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        actions.setOpaque(false);
+        JButton closeButton = StyleManager.createButton("Close", StyleManager.ACCENT_RED);
+        printButton.addActionListener(event -> printReceipt());
+        closeButton.addActionListener(event -> dispose());
+        actions.add(printButton);
+        actions.add(closeButton);
 
-        topPanel.add(new JLabel("Date:"));
-        dateField.setText(new Date().toString()); // Default to current date
-        topPanel.add(dateField);
-
-        // Row 2
-        topPanel.add(new JLabel("Customer:"));
-        topPanel.add(customerField);
-
-        topPanel.add(new JLabel("Cashier:"));
-        topPanel.add(cashierField);
-
-        // --- CENTER PANEL (Purchase Details) ---
-        JPanel centerPanel = new JPanel(new BorderLayout());
-        centerPanel.setBorder(BorderFactory.createTitledBorder("Purchase Details"));
-
-        purchaseArea.setEditable(false);
-        purchaseArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
-        centerPanel.add(new JScrollPane(purchaseArea), BorderLayout.CENTER);
-
-        // --- BOTTOM PANEL (Buttons) ---
-        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        bottomPanel.add(btnNew);
-        bottomPanel.add(btnGenerate);
-
-        // --- ADD PANELS TO MAIN ---
-        mainPanel.add(topPanel, BorderLayout.NORTH);
-        mainPanel.add(centerPanel, BorderLayout.CENTER);
-        mainPanel.add(bottomPanel, BorderLayout.SOUTH);
-
-        add(mainPanel);
-
-        // --- EVENT LISTENERS ---
-        setupListeners();
+        mainPanel.add(StyleManager.createLabel("PURCHASE RECEIPT", StyleManager.ACCENT_GOLD,
+                StyleManager.FONT_TITLE), BorderLayout.NORTH);
+        mainPanel.add(receiptPanel, BorderLayout.CENTER);
+        mainPanel.add(actions, BorderLayout.SOUTH);
+        setContentPane(mainPanel);
     }
 
-    private void setupListeners() {
-        // Listener for New Bill button
-        btnNew.addActionListener(this::onNewBillClick);
-
-        // Listener for Generate Bill button
-        btnGenerate.addActionListener(this::onGenerateBillClick);
+    private void printReceipt() {
+        try {
+            receiptArea.print();
+        } catch (PrinterException exception) {
+            JOptionPane.showMessageDialog(this, "Unable to print the receipt: " + exception.getMessage(),
+                    "Print Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
-    private void onNewBillClick(ActionEvent e) {
-        clearForm();
-    }
-
-    private void onGenerateBillClick(ActionEvent e) {
-        // Placeholder for logic - implement later
-        JOptionPane.showMessageDialog(this, "Generate Bill clicked!\nImplement your logic here.");
-    }
-
-    private void clearForm() {
-        billIdField.setText("");
-        dateField.setText(new Date().toString());
-        customerField.setText("");
-        cashierField.setText("");
-        purchaseArea.setText("");
-    }
-
-    // --- MAIN METHOD FOR TESTING (Optional) ---
     public static void main(String[] args) {
-        // Use SwingUtilities to ensure GUI updates are done on the Event Dispatch Thread
         SwingUtilities.invokeLater(() -> {
             BillView billView = new BillView();
             billView.setVisible(true);
