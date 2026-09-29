@@ -17,31 +17,51 @@ import com.cash_shop.product.Product;
 public class SupplierDAO {
 
     public void initializeSchema() {
-        String[] statements = {
-                "CREATE TABLE IF NOT EXISTS suppliers ("
-                        + "supplier_code INT PRIMARY KEY, supplier_name VARCHAR(150) NOT NULL, "
-                        + "telephone VARCHAR(50) NOT NULL, address VARCHAR(255) NOT NULL) ENGINE=InnoDB",
-                "CREATE TABLE IF NOT EXISTS supplier_orders ("
-                        + "order_number INT NOT NULL AUTO_INCREMENT PRIMARY KEY, "
-                        + "supplier_code INT NOT NULL, order_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, "
-                        + "status VARCHAR(20) NOT NULL DEFAULT 'PENDING', total_amount DECIMAL(14,2) NOT NULL DEFAULT 0, "
-                        + "CONSTRAINT fk_supplier_order_supplier FOREIGN KEY (supplier_code) "
-                        + "REFERENCES suppliers(supplier_code)) ENGINE=InnoDB",
-                "CREATE TABLE IF NOT EXISTS supplier_order_lines ("
-                        + "order_number INT NOT NULL, reference INT NOT NULL, quantity INT NOT NULL, "
-                        + "unit_purchase_price DECIMAL(14,2) NOT NULL, PRIMARY KEY (order_number, reference), "
-                        + "CONSTRAINT fk_supplier_line_order FOREIGN KEY (order_number) "
-                        + "REFERENCES supplier_orders(order_number), "
-                        + "CONSTRAINT fk_supplier_line_product FOREIGN KEY (reference) "
-                        + "REFERENCES products(reference)) ENGINE=InnoDB"
-        };
+        String createSuppliers = "CREATE TABLE IF NOT EXISTS suppliers ("
+                + "code INT PRIMARY KEY, supplier_name VARCHAR(150) NOT NULL, "
+                + "telephone VARCHAR(50) NOT NULL, address VARCHAR(100) NOT NULL) ENGINE=InnoDB";
+        String createOrders = "CREATE TABLE IF NOT EXISTS supplier_orders ("
+                + "order_number INT NOT NULL AUTO_INCREMENT PRIMARY KEY, "
+                + "supplier_code INT NULL, order_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, "
+                + "status VARCHAR(20) NOT NULL DEFAULT 'PENDING', total_amount DECIMAL(14,2) NOT NULL DEFAULT 0, "
+                + "CONSTRAINT fk_supplier_order_supplier FOREIGN KEY (supplier_code) "
+                + "REFERENCES suppliers(code)) ENGINE=InnoDB";
+        String createOrderLines = "CREATE TABLE IF NOT EXISTS supplier_order_lines ("
+                + "order_number INT NOT NULL, reference INT NOT NULL, quantity INT NOT NULL, "
+                + "unit_purchase_price DECIMAL(14,2) NOT NULL, PRIMARY KEY (order_number, reference), "
+                + "CONSTRAINT fk_supplier_line_order FOREIGN KEY (order_number) "
+                + "REFERENCES supplier_orders(order_number), "
+                + "CONSTRAINT fk_supplier_line_product FOREIGN KEY (reference) "
+                + "REFERENCES products(reference)) ENGINE=InnoDB";
         try (Connection connection = DBConnection.getConnection(); Statement statement = connection.createStatement()) {
-            for (String sql : statements) {
-                statement.executeUpdate(sql);
-            }
+            statement.executeUpdate(createSuppliers);
+            statement.executeUpdate(createOrders);
+            ensureColumn(connection, "supplier_orders", "supplier_code", "INT NULL");
+            ensureColumn(connection, "supplier_orders", "total_amount", "DECIMAL(14,2) NOT NULL DEFAULT 0");
+            statement.executeUpdate("ALTER TABLE supplier_orders MODIFY status "
+                    + "VARCHAR(20) NOT NULL DEFAULT 'PENDING'");
+            statement.executeUpdate(createOrderLines);
             seedInitialSuppliers(connection);
         } catch (SQLException exception) {
             throw databaseError(exception);
+        }
+    }
+
+    private void ensureColumn(Connection connection, String table, String column, String definition)
+            throws SQLException {
+        String lookup = "SELECT COUNT(*) FROM information_schema.columns "
+                + "WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?";
+        try (PreparedStatement statement = connection.prepareStatement(lookup)) {
+            statement.setString(1, table);
+            statement.setString(2, column);
+            try (ResultSet results = statement.executeQuery()) {
+                results.next();
+                if (results.getInt(1) == 0) {
+                    try (Statement alter = connection.createStatement()) {
+                        alter.executeUpdate("ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition);
+                    }
+                }
+            }
         }
     }
 
@@ -53,7 +73,7 @@ public class SupplierDAO {
                 return;
             }
         }
-        String sql = "INSERT INTO suppliers (supplier_code, supplier_name, telephone, address) VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO suppliers (code, supplier_name, telephone, address) VALUES (?, ?, ?, ?)";
         Object[][] initialSuppliers = {
                 { 1, "Achat Plus", "+221 77 000 00 00", "Dakar" },
                 { 2, "Fresh Supply", "+221 77 111 11 11", "Thies" },
@@ -72,13 +92,13 @@ public class SupplierDAO {
     }
     
     public List<Supplier> getSuppliers() {
-        String sql = "SELECT supplier_code, supplier_name, telephone, address FROM suppliers ORDER BY supplier_name";
+        String sql = "SELECT code, supplier_name, telephone, address FROM suppliers ORDER BY supplier_name";
         List<Supplier> suppliers = new ArrayList<>();
         try (Connection connection = DBConnection.getConnection();
                 PreparedStatement statement = connection.prepareStatement(sql);
                 ResultSet results = statement.executeQuery()) {
             while (results.next()) {
-                suppliers.add(new Supplier(results.getInt("supplier_code"), results.getString("supplier_name"),
+                suppliers.add(new Supplier(results.getInt("code"), results.getString("supplier_name"),
                         results.getString("telephone"), results.getString("address")));
             }
         } catch (SQLException exception) {
@@ -88,7 +108,7 @@ public class SupplierDAO {
     }
 
     public void addSupplier(Supplier supplier) {
-        String sql = "INSERT INTO suppliers (supplier_code, supplier_name, telephone, address) VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO suppliers (code, supplier_name, telephone, address) VALUES (?, ?, ?, ?)";
         try (Connection connection = DBConnection.getConnection();
                 PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, supplier.getCode());
@@ -102,7 +122,7 @@ public class SupplierDAO {
     }
 
     public void deleteSupplier(int supplierCode) {
-        String sql = "DELETE FROM suppliers WHERE supplier_code = ?";
+        String sql = "DELETE FROM suppliers WHERE code = ?";
         try (Connection connection = DBConnection.getConnection();
                 PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, supplierCode);
@@ -120,7 +140,7 @@ public class SupplierDAO {
     public List<SupplierOrder> getOrders(int supplierCode) {
         String sql = "SELECT o.order_number, o.order_date, o.supplier_code, s.supplier_name, "
                 + "o.total_amount, o.status FROM supplier_orders o "
-                + "JOIN suppliers s ON s.supplier_code = o.supplier_code "
+            + "JOIN suppliers s ON s.code = o.supplier_code "
                 + "WHERE o.supplier_code = ? ORDER BY o.order_date DESC, o.order_number DESC";
         List<SupplierOrder> orders = new ArrayList<>();
         try (Connection connection = DBConnection.getConnection();
