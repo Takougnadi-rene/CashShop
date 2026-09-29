@@ -28,11 +28,12 @@ public class AccessService {
                 return Collections.unmodifiableSet(EnumSet.of(Module.DASHBOARD, Module.EMPLOYEES, Module.USERS,
                         Module.CUSTOMERS, Module.PRODUCTS, Module.STOCK, Module.AISLES, Module.SUPPLIERS));
             case MANAGER:
+            case STOREKEEPER:
+                return Collections.unmodifiableSet(EnumSet.of(
+                        Module.PRODUCTS, Module.STOCK, Module.SUPPLIERS, Module.AISLES));
             case ACCOUNTANT:
                 return Collections.unmodifiableSet(EnumSet.of(Module.DASHBOARD, Module.EMPLOYEES,
-                        Module.CUSTOMERS, Module.PRODUCTS, Module.STOCK, Module.AISLES, Module.SUPPLIERS));
-            case STOREKEEPER:
-                return Collections.unmodifiableSet(EnumSet.of(Module.PRODUCTS, Module.STOCK));
+                        Module.PRODUCTS, Module.STOCK, Module.SUPPLIERS));
             case COUNTER:
             case CASHIER:
                 return Collections.unmodifiableSet(EnumSet.of(Module.SALES));

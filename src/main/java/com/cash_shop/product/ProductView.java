@@ -1,22 +1,16 @@
 package com.cash_shop.product;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
-import javax.swing.JComponent;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -34,18 +28,20 @@ public class ProductView extends JFrame {
     private final JTextField tfDesignation = StyleManager.createField();
     private final JTextField tfPurchase = StyleManager.createField();
     private final JTextField tfSelling = StyleManager.createField();
-        private final JComboBox<String> cbProductType = new JComboBox<>(
+    private final JComboBox<String> cbProductType = new JComboBox<>(
             new String[] { "Standard", "Fresh", "Electronic", "Artisanal" });
-        private final JTextField tfExpirationDate = StyleManager.createField();
-        private final JTextField tfStorageTemperature = StyleManager.createField();
-        private final JTextField tfBrand = StyleManager.createField();
-        private final JTextField tfWarranty = StyleManager.createField();
-        private final JComboBox<ArtisanalProduct.TypeArtisanal> cbArtisanalType =
+    private final JTextField tfExpirationDate = StyleManager.createField();
+    private final JTextField tfStorageTemperature = StyleManager.createField();
+    private final JTextField tfBrand = StyleManager.createField();
+    private final JTextField tfWarranty = StyleManager.createField();
+    private final JComboBox<ArtisanalProduct.TypeArtisanal> cbArtisanalType =
             new JComboBox<>(ArtisanalProduct.TypeArtisanal.values());
-    private final JTextField tfSearch = StyleManager.createField();
+    private final JTextField tfSearch = new JTextField(20);
     private final ProductDAO productDAO = new ProductDAO();
-    private JTable table;
-    private DefaultTableModel tableModel;
+    private final DefaultTableModel tableModel = StyleManager.createReadOnlyModel(
+            "Reference", "Designation", "Purchase Price (USD)", "Selling Price (USD)",
+            "Expiration Date", "Warranty (Months)", "Artisanal Type");
+    private final JTable table = StyleManager.createTable(tableModel);
     private final boolean readOnly;
     private final Timer refreshTimer = new Timer(5000, event -> refreshTable(false));
 
@@ -56,10 +52,9 @@ public class ProductView extends JFrame {
     public ProductView(boolean readOnly) {
         this.readOnly = readOnly;
         setTitle("Product Management");
-        setSize(1050, 680);
+        setSize(1000, 600);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        setResizable(false);
         buildUI();
         if (readOnly) {
             tfReference.setEditable(false);
@@ -84,114 +79,68 @@ public class ProductView extends JFrame {
     }
 
     private void buildUI() {
-        JPanel main = new JPanel(new BorderLayout(12, 12));
-        main.setBackground(StyleManager.BG_DARK);
-        main.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        // Formulaire à gauche
+        JPanel form = StyleManager.createForm("Product details");
+        StyleManager.addRow(form, 0, "Reference:", tfReference);
+        StyleManager.addRow(form, 1, "Name:", tfDesignation);
+        StyleManager.addRow(form, 2, "Purchase Price (USD):", tfPurchase);
+        StyleManager.addRow(form, 3, "Selling Price (USD):", tfSelling);
+        StyleManager.addRow(form, 4, "Product Type:", cbProductType);
+        StyleManager.addRow(form, 5, "Expiration Date:", tfExpirationDate);
+        StyleManager.addRow(form, 6, "Storage Temperature:", tfStorageTemperature);
+        StyleManager.addRow(form, 7, "Brand:", tfBrand);
+        StyleManager.addRow(form, 8, "Warranty (Months):", tfWarranty);
+        StyleManager.addRow(form, 9, "Artisanal Type:", cbArtisanalType);
+        cbProductType.addActionListener(e -> updateTypeFields());
+        updateTypeFields();
+        JPanel left = new JPanel(new BorderLayout());
+        left.add(form, BorderLayout.NORTH);
 
-        JPanel header = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        header.setBackground(StyleManager.BG_DARK);
-        header.add(StyleManager.createLabel("PRODUCT MANAGEMENT", StyleManager.ACCENT_GOLD, StyleManager.FONT_TITLE));
+        // Recherche au-dessus du tableau
+        JButton btnSearch = new JButton("Search");
+        btnSearch.addActionListener(e -> searchProducts());
+        tfSearch.addActionListener(e -> searchProducts());
+        JPanel searchBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        searchBar.add(new JLabel("Search:"));
+        searchBar.add(tfSearch);
+        searchBar.add(btnSearch);
 
-        JPanel content = new JPanel(new BorderLayout(12, 12));
-        content.setBackground(StyleManager.BG_DARK);
+        JPanel center = new JPanel(new BorderLayout(0, 8));
+        center.add(searchBar, BorderLayout.NORTH);
+        center.add(new JScrollPane(table), BorderLayout.CENTER);
 
-        JPanel formPanel = StyleManager.createCard();
-        formPanel.setLayout(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(8, 8, 8, 8);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-
-        addFormField(formPanel, gbc, 0, "Reference:", tfReference);
-        addFormField(formPanel, gbc, 1, "Name:", tfDesignation);
-        addFormField(formPanel, gbc, 2, "Purchase Price (USD):", tfPurchase);
-        addFormField(formPanel, gbc, 3, "Selling Price (USD):", tfSelling);
-        addFormField(formPanel, gbc, 4, "Product Type:", cbProductType);
-        addFormField(formPanel, gbc, 5, "Expiration Date:", tfExpirationDate);
-        addFormField(formPanel, gbc, 6, "Storage Temperature:", tfStorageTemperature);
-        addFormField(formPanel, gbc, 7, "Brand:", tfBrand);
-        addFormField(formPanel, gbc, 8, "Warranty (Months):", tfWarranty);
-        addFormField(formPanel, gbc, 9, "Artisanal Type:", cbArtisanalType);
-        cbProductType.setBackground(StyleManager.BG_DARK);
-        cbProductType.setForeground(StyleManager.TEXT_PRIMARY);
-        cbProductType.setFont(StyleManager.FONT_BODY);
-        cbArtisanalType.setBackground(StyleManager.BG_DARK);
-        cbArtisanalType.setForeground(StyleManager.TEXT_PRIMARY);
-        cbArtisanalType.setFont(StyleManager.FONT_BODY);
-
-        JPanel leftPanel = new JPanel(new BorderLayout());
-        leftPanel.setOpaque(false);
-        leftPanel.add(formPanel, BorderLayout.CENTER);
-
-        String[] columns = {"Reference", "Designation", "Purchase Price (USD)", "Selling Price (USD)",
-            "Expiration Date", "Warranty (Months)", "Artisanal Type"};
-        tableModel = new DefaultTableModel(columns, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        };
-        table = StyleManager.createTable(tableModel);
-        table.setRowHeight(28);
-
-        JPanel tablePanel = StyleManager.createCard();
-        tablePanel.setLayout(new BorderLayout());
-        tablePanel.add(new JScrollPane(table), BorderLayout.CENTER);
-
-        JPanel rightPanel = new JPanel(new BorderLayout());
-        rightPanel.setOpaque(false);
-        rightPanel.add(StyleManager.createLabel("Product List", StyleManager.ACCENT_BLUE, StyleManager.FONT_HEADER), BorderLayout.NORTH);
-        rightPanel.add(tablePanel, BorderLayout.CENTER);
-
-        JPanel centerSplit = new JPanel(new BorderLayout(12, 12));
-        centerSplit.setOpaque(false);
-        centerSplit.add(leftPanel, BorderLayout.WEST);
-        centerSplit.add(rightPanel, BorderLayout.CENTER);
-
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
-        buttonPanel.setOpaque(false);
-        JButton btnAdd = StyleManager.createButton("Add", StyleManager.ACCENT_GREEN);
-        JButton btnDelete = StyleManager.createButton("Delete", StyleManager.ACCENT_RED);
-        JButton btnSearch = StyleManager.createButton("Search", StyleManager.ACCENT_BLUE);
-        JButton btnClear = StyleManager.createButton("Clear", new Color(100, 100, 120));
+        // Boutons
+        JButton btnAdd = new JButton("Add");
+        JButton btnDelete = new JButton("Delete");
+        JButton btnClear = new JButton("Clear");
         btnAdd.setEnabled(!readOnly);
         btnDelete.setEnabled(!readOnly);
-
         btnAdd.addActionListener(e -> addProduct());
         btnDelete.addActionListener(e -> deleteSelectedProduct());
-        btnSearch.addActionListener(e -> searchProducts());
         btnClear.addActionListener(e -> clearForm());
 
-        buttonPanel.add(btnAdd);
-        buttonPanel.add(btnDelete);
-        buttonPanel.add(btnSearch);
-        buttonPanel.add(btnClear);
-
-        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        searchPanel.setOpaque(false);
-        searchPanel.add(StyleManager.createLabel("Search:", StyleManager.TEXT_MUTED, StyleManager.FONT_SMALL));
-        searchPanel.add(tfSearch);
-        tfSearch.setPreferredSize(new Dimension(220, 30));
-
-        JPanel bottomPanel = new JPanel(new BorderLayout());
-        bottomPanel.setOpaque(false);
-        bottomPanel.add(searchPanel, BorderLayout.NORTH);
-        bottomPanel.add(buttonPanel, BorderLayout.SOUTH);
-
-        main.add(header, BorderLayout.NORTH);
-        main.add(centerSplit, BorderLayout.CENTER);
-        main.add(bottomPanel, BorderLayout.SOUTH);
-        setContentPane(main);
+        JPanel page = StyleManager.createPage();
+        page.add(StyleManager.createTitle("Products"), BorderLayout.NORTH);
+        page.add(left, BorderLayout.WEST);
+        page.add(center, BorderLayout.CENTER);
+        page.add(StyleManager.createButtonBar(btnAdd, btnDelete, btnClear), BorderLayout.SOUTH);
+        setContentPane(page);
     }
 
-    private void addFormField(JPanel formPanel, GridBagConstraints gbc, int row, String labelText, JComponent field) {
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        formPanel.add(StyleManager.createLabel(labelText, StyleManager.TEXT_MUTED, StyleManager.FONT_SMALL), gbc);
-        gbc.gridx = 1;
-        gbc.weightx = 1.0;
-        field.setPreferredSize(new Dimension(180, 28));
-        formPanel.add(field, gbc);
-        gbc.weightx = 0.0;
+    /** N'active que les champs utiles pour le type de produit choisi. */
+    private void updateTypeFields() {
+        if (readOnly) {
+            return;
+        }
+        String type = (String) cbProductType.getSelectedItem();
+        boolean fresh = "Fresh".equals(type);
+        boolean electronic = "Electronic".equals(type);
+        boolean artisanal = "Artisanal".equals(type);
+        tfExpirationDate.setEnabled(fresh);
+        tfStorageTemperature.setEnabled(fresh);
+        tfBrand.setEnabled(electronic);
+        tfWarranty.setEnabled(electronic);
+        cbArtisanalType.setEnabled(artisanal);
     }
 
     private void addProduct() {
@@ -337,6 +286,7 @@ public class ProductView extends JFrame {
     }
 
     public static void main(String[] args) {
+        StyleManager.applyLookAndFeel();
         javax.swing.SwingUtilities.invokeLater(() -> new ProductView().setVisible(true));
     }
 }

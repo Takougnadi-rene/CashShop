@@ -1,10 +1,8 @@
 package com.cash_shop.bill;
 
 import java.awt.BorderLayout;
-import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.print.PrinterException;
-import java.util.Date;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -22,7 +20,7 @@ import com.cash_shop.sale.Sale;
 
 public class BillView extends JFrame {
     private final JTextArea receiptArea = new JTextArea();
-    private final JButton printButton = StyleManager.createButton("Print Receipt", StyleManager.ACCENT_BLUE);
+    private final JButton printButton = new JButton("Print Receipt");
 
     public BillView() {
         this(null);
@@ -38,12 +36,12 @@ public class BillView extends JFrame {
 
     public BillView(Sale sale, Customer customer, Payment.PaymentMode paymentMode, Double cashReceived) {
         this(sale, customer, paymentMode, cashReceived, sale == null ? 0 : sale.getSaleId());
-        }
+    }
 
-        public BillView(Sale sale, Customer customer, Payment.PaymentMode paymentMode,
+    public BillView(Sale sale, Customer customer, Payment.PaymentMode paymentMode,
             Double cashReceived, int billNumber) {
         setTitle("Cash Shop - Receipt");
-        setSize(560, 620);
+        setSize(500, 600);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         buildUI();
@@ -51,7 +49,8 @@ public class BillView extends JFrame {
             receiptArea.setText("No receipt has been generated.");
             printButton.setEnabled(false);
         } else {
-            Bill bill = new Bill(billNumber, new Date(), customer, sale.getCashier(), sale);
+            Bill bill = new Bill(billNumber, java.sql.Timestamp.valueOf(sale.getSaleDate()), customer,
+                    sale.getCashier(), sale);
             String receipt = bill.genererFacture();
             if (paymentMode != null) {
                 String paymentLabel = switch (paymentMode) {
@@ -67,9 +66,9 @@ public class BillView extends JFrame {
                     double change = cashReceived - new com.cash_shop.sale.SaleService().calculateTotal(sale);
                     int dueLine = receipt.indexOf("TOTAL DUE:");
                     receipt = receipt.substring(0, dueLine)
-                        + String.format("CASH RECEIVED: %,.0f FCFA\nCHANGE: %,.0f FCFA\n",
-                            cashReceived, change)
-                        + receipt.substring(dueLine);
+                            + String.format("CASH RECEIVED: %,.0f $\nCHANGE: %,.0f $\n",
+                                    cashReceived, change)
+                            + receipt.substring(dueLine);
                 }
             }
             receiptArea.setText(receipt);
@@ -78,33 +77,19 @@ public class BillView extends JFrame {
     }
 
     private void buildUI() {
-        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
-        mainPanel.setBackground(StyleManager.BG_DARK);
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
-
-        JPanel receiptPanel = StyleManager.createCard();
-        receiptPanel.setLayout(new BorderLayout());
         receiptArea.setEditable(false);
-        receiptArea.setBackground(StyleManager.BG_PANEL);
-        receiptArea.setForeground(StyleManager.TEXT_PRIMARY);
-        receiptArea.setCaretColor(StyleManager.TEXT_PRIMARY);
         receiptArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
-        receiptArea.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
-        receiptPanel.add(new JScrollPane(receiptArea), BorderLayout.CENTER);
+        receiptArea.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        actions.setOpaque(false);
-        JButton closeButton = StyleManager.createButton("Close", StyleManager.ACCENT_RED);
+        JButton closeButton = new JButton("Close");
         printButton.addActionListener(event -> printReceipt());
         closeButton.addActionListener(event -> dispose());
-        actions.add(printButton);
-        actions.add(closeButton);
 
-        mainPanel.add(StyleManager.createLabel("PURCHASE RECEIPT", StyleManager.ACCENT_GOLD,
-                StyleManager.FONT_TITLE), BorderLayout.NORTH);
-        mainPanel.add(receiptPanel, BorderLayout.CENTER);
-        mainPanel.add(actions, BorderLayout.SOUTH);
-        setContentPane(mainPanel);
+        JPanel page = StyleManager.createPage();
+        page.add(StyleManager.createTitle("Purchase receipt"), BorderLayout.NORTH);
+        page.add(new JScrollPane(receiptArea), BorderLayout.CENTER);
+        page.add(StyleManager.createButtonBar(printButton, closeButton), BorderLayout.SOUTH);
+        setContentPane(page);
     }
 
     private void printReceipt() {
@@ -117,6 +102,7 @@ public class BillView extends JFrame {
     }
 
     public static void main(String[] args) {
+        StyleManager.applyLookAndFeel();
         SwingUtilities.invokeLater(() -> {
             BillView billView = new BillView();
             billView.setVisible(true);

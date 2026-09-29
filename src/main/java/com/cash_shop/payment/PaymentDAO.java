@@ -20,7 +20,7 @@ public class PaymentDAO {
             ps.setInt(1, payment.getPaymentNumber());
             ps.setDouble(2, payment.getAmount());
             ps.setString(3, payment.getPaymentMode().name());
-            ps.setDate(4, (java.sql.Date) payment.getPaymentDate());
+            ps.setTimestamp(4, new java.sql.Timestamp(payment.getPaymentDate().getTime()));
             ps.setInt(5, payment.getSale().getSaleId());
             ps.executeUpdate();
         } catch (SQLException e) {

@@ -1,14 +1,9 @@
 package com.cash_shop.customer;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.FlowLayout;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.GridLayout;
-import java.awt.Insets;
 import java.sql.SQLException;
 
+import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -17,41 +12,22 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 
-import static com.cash_shop.common.StyleManager.ACCENT_BLUE;
-import static com.cash_shop.common.StyleManager.ACCENT_GOLD;
-import static com.cash_shop.common.StyleManager.ACCENT_GREEN;
-import static com.cash_shop.common.StyleManager.ACCENT_RED;
-import static com.cash_shop.common.StyleManager.BG_DARK;
-import static com.cash_shop.common.StyleManager.BG_PANEL;
-import static com.cash_shop.common.StyleManager.FONT_HEADER;
-import static com.cash_shop.common.StyleManager.FONT_SMALL;
-import static com.cash_shop.common.StyleManager.FONT_TITLE;
-import static com.cash_shop.common.StyleManager.TEXT_MUTED;
-import static com.cash_shop.common.StyleManager.createButton;
-import static com.cash_shop.common.StyleManager.createCard;
-import static com.cash_shop.common.StyleManager.createField;
-import static com.cash_shop.common.StyleManager.createLabel;
-import static com.cash_shop.common.StyleManager.createTable;
+import com.cash_shop.common.StyleManager;
 
 public class CustomerView extends JFrame {
     private final CustomerDAO customerDAO = new CustomerDAO();
-    private final JTextField idField = createField();
-    private final JTextField nameField = createField();
-    private final JTextField emailField = createField();
-    private final JTextField phoneField = createField();
-    private final JTextField spentField = createField();
-    private final DefaultTableModel tableModel = new DefaultTableModel(
-            new String[] { "ID", "Name", "Phone", "Total Spent", "Loyalty Points" }, 0) {
-        @Override
-        public boolean isCellEditable(int row, int column) {
-            return false;
-        }
-    };
-    private final JTable table = createTable(tableModel);
+    private final JTextField idField = StyleManager.createField();
+    private final JTextField nameField = StyleManager.createField();
+    private final JTextField emailField = StyleManager.createField();
+    private final JTextField phoneField = StyleManager.createField();
+    private final JTextField spentField = StyleManager.createField();
+    private final DefaultTableModel tableModel = StyleManager.createReadOnlyModel(
+            "ID", "Name", "Phone", "Total Spent", "Loyalty Points");
+    private final JTable table = StyleManager.createTable(tableModel);
 
     public CustomerView() {
         setTitle("Customer Management");
-        setSize(900, 560);
+        setSize(850, 500);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLocationRelativeTo(null);
         buildUI();
@@ -59,67 +35,31 @@ public class CustomerView extends JFrame {
     }
 
     private void buildUI() {
-        JPanel main = new JPanel(new BorderLayout());
-        main.setBackground(BG_DARK);
+        JPanel form = StyleManager.createForm("Customer details");
+        StyleManager.addRow(form, 0, "Customer ID:", idField);
+        StyleManager.addRow(form, 1, "Name:", nameField);
+        StyleManager.addRow(form, 2, "Email:", emailField);
+        StyleManager.addRow(form, 3, "Phone:", phoneField);
+        StyleManager.addRow(form, 4, "Total Spent:", spentField);
+        JPanel left = new JPanel(new BorderLayout());
+        left.add(form, BorderLayout.NORTH);
 
-        JPanel header = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        header.setBackground(BG_PANEL);
-        header.add(createLabel("CUSTOMER MANAGEMENT", ACCENT_GOLD, FONT_TITLE));
-
-        JPanel content = new JPanel(new GridLayout(1, 2, 10, 0));
-        content.setBackground(BG_DARK);
-        content.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 10, 5, 10));
-
-        JPanel form = createCard();
-        form.setLayout(new GridBagLayout());
-        GridBagConstraints constraints = new GridBagConstraints();
-        constraints.insets = new Insets(6, 5, 6, 5);
-        constraints.fill = GridBagConstraints.HORIZONTAL;
-        constraints.gridx = 0;
-        constraints.gridy = 0;
-        constraints.gridwidth = 2;
-        form.add(createLabel("[ Customer Details ]", ACCENT_BLUE, FONT_HEADER), constraints);
-        addField(form, constraints, 1, "Customer ID:", idField);
-        addField(form, constraints, 2, "Name:", nameField);
-        addField(form, constraints, 3, "Email:", emailField);
-        addField(form, constraints, 4, "Phone:", phoneField);
-        addField(form, constraints, 5, "Total Spent:", spentField);
-
-        JPanel list = createCard();
-        list.setLayout(new BorderLayout());
-        list.add(createLabel("[ Customer List ]", ACCENT_BLUE, FONT_HEADER), BorderLayout.NORTH);
-        list.add(new JScrollPane(table), BorderLayout.CENTER);
-        content.add(form);
-        content.add(list);
-
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 8));
-        actions.setBackground(BG_PANEL);
-        javax.swing.JButton addButton = createButton("+ Add", ACCENT_GREEN);
-        javax.swing.JButton pointsButton = createButton("Add Loyalty Points", ACCENT_GOLD);
-        javax.swing.JButton deleteButton = createButton("Delete", ACCENT_RED);
-        javax.swing.JButton closeButton = createButton("Close", new Color(80, 80, 100));
+        JButton addButton = new JButton("Add");
+        JButton pointsButton = new JButton("Add Loyalty Points");
+        JButton deleteButton = new JButton("Delete");
+        JButton closeButton = new JButton("Close");
         addButton.addActionListener(event -> addCustomer());
         pointsButton.addActionListener(event -> addLoyaltyPoints());
         deleteButton.addActionListener(event -> deleteCustomer());
         closeButton.addActionListener(event -> dispose());
-        actions.add(addButton);
-        actions.add(pointsButton);
-        actions.add(deleteButton);
-        actions.add(closeButton);
 
-        main.add(header, BorderLayout.NORTH);
-        main.add(content, BorderLayout.CENTER);
-        main.add(actions, BorderLayout.SOUTH);
-        setContentPane(main);
-    }
-
-    private void addField(JPanel panel, GridBagConstraints constraints, int row, String label, JTextField field) {
-        constraints.gridy = row;
-        constraints.gridwidth = 1;
-        constraints.gridx = 0;
-        panel.add(createLabel(label, TEXT_MUTED, FONT_SMALL), constraints);
-        constraints.gridx = 1;
-        panel.add(field, constraints);
+        JPanel page = StyleManager.createPage();
+        page.add(StyleManager.createTitle("Customers"), BorderLayout.NORTH);
+        page.add(left, BorderLayout.WEST);
+        page.add(new JScrollPane(table), BorderLayout.CENTER);
+        page.add(StyleManager.createButtonBar(addButton, pointsButton, deleteButton, closeButton),
+                BorderLayout.SOUTH);
+        setContentPane(page);
     }
 
     private void addCustomer() {

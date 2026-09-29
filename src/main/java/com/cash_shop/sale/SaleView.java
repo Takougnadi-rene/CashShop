@@ -1,19 +1,17 @@
 package com.cash_shop.sale;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.GridLayout;
 import java.awt.Insets;
 import java.sql.SQLException;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.BorderFactory;
-import javax.swing.Box;
-import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
@@ -53,16 +51,11 @@ public class SaleView extends JFrame {
     private final JRadioButton cashRadio = new JRadioButton("Cash", true);
     private final JRadioButton cardRadio = new JRadioButton("Bank card");
     private final JRadioButton mobileRadio = new JRadioButton("Mobile Money");
-    private final JLabel totalLabel = StyleManager.createLabel("TOTAL DUE: 0 FCFA",
-            StyleManager.ACCENT_GREEN, StyleManager.FONT_HEADER);
-    private final DefaultTableModel basketModel = new DefaultTableModel(
-            new String[] { "Product", "Qty", "Unit Price (FCFA)", "Subtotal (FCFA)" }, 0) {
-        @Override
-        public boolean isCellEditable(int row, int column) {
-            return false;
-        }
-    };
+    private final JLabel totalLabel = StyleManager.createBoldLabel("Total due: 0 $");
+    private final DefaultTableModel basketModel = StyleManager.createReadOnlyModel(
+            "Product", "Qty", "Unit Price ($)", "Subtotal ($)");
     private final JTable basketTable = StyleManager.createTable(basketModel);
+
     public SaleView() {
         this(null);
     }
@@ -72,8 +65,8 @@ public class SaleView extends JFrame {
         loadCatalog();
         loadCustomers();
         setTitle("Register - Sales Module");
-        setSize(1120, 720);
-        setMinimumSize(new java.awt.Dimension(900, 620));
+        setSize(950, 560);
+        setMinimumSize(new java.awt.Dimension(800, 500));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         buildUI();
@@ -127,105 +120,61 @@ public class SaleView extends JFrame {
     }
 
     private void buildUI() {
-        JPanel root = new JPanel(new BorderLayout(12, 12));
-        root.setBackground(StyleManager.BG_DARK);
-        root.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
-
-        JPanel header = new JPanel(new BorderLayout());
-        header.setBackground(StyleManager.BG_DARK);
-        header.setBorder(BorderFactory.createEmptyBorder(2, 4, 4, 4));
-        header.add(StyleManager.createLabel("REGISTER", StyleManager.ACCENT_GOLD, StyleManager.FONT_TITLE),
-                BorderLayout.WEST);
-        header.add(StyleManager.createLabel("SALES MODULE", StyleManager.TEXT_MUTED,
-                StyleManager.FONT_SMALL), BorderLayout.EAST);
-
-        JPanel columns = new JPanel(new BorderLayout(12, 0));
-        columns.setOpaque(false);
-        columns.add(buildEntryPanel(), BorderLayout.WEST);
-        columns.add(buildBasketPanel(), BorderLayout.CENTER);
-
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
-        actions.setBackground(StyleManager.BG_DARK);
-        actions.setBorder(BorderFactory.createEmptyBorder(2, 0, 0, 0));
-        JButton validateButton = StyleManager.createButton("COMPLETE SALE", StyleManager.ACCENT_GREEN);
-        JButton cancelButton = StyleManager.createButton("CANCEL SALE", StyleManager.ACCENT_RED);
-        JButton closeButton = StyleManager.createButton("Close", new Color(90, 90, 110));
+        JButton validateButton = new JButton("Complete Sale");
+        JButton cancelButton = new JButton("Cancel Sale");
+        JButton closeButton = new JButton("Close");
         validateButton.addActionListener(event -> validateSale());
         cancelButton.addActionListener(event -> cancelSale());
         closeButton.addActionListener(event -> dispose());
-        actions.add(validateButton);
-        actions.add(cancelButton);
-        actions.add(closeButton);
 
-        root.add(header, BorderLayout.NORTH);
-        root.add(columns, BorderLayout.CENTER);
-        root.add(actions, BorderLayout.SOUTH);
-        setContentPane(root);
+        JPanel page = StyleManager.createPage();
+        page.add(StyleManager.createTitle("Register"), BorderLayout.NORTH);
+        page.add(buildEntryPanel(), BorderLayout.WEST);
+        page.add(buildBasketPanel(), BorderLayout.CENTER);
+        page.add(StyleManager.createButtonBar(validateButton, cancelButton, closeButton), BorderLayout.SOUTH);
+        setContentPane(page);
     }
 
     private JPanel buildEntryPanel() {
-        JPanel panel = StyleManager.createCard();
-        panel.setLayout(new BorderLayout(0, 12));
-        panel.setPreferredSize(new java.awt.Dimension(420, 0));
+        // Client, produit, quantité
+        JPanel entry = StyleManager.createForm("Customer and item");
+        StyleManager.addRow(entry, 0, "Customer:", createCustomerControl());
+        StyleManager.addRow(entry, 1, "Product:", productCombo);
+        StyleManager.addRow(entry, 2, "Quantity:", quantitySpinner);
 
-        JPanel entry = new JPanel(new GridBagLayout());
-        entry.setOpaque(false);
-        GridBagConstraints constraints = new GridBagConstraints();
-        constraints.insets = new Insets(7, 4, 7, 4);
-        constraints.fill = GridBagConstraints.HORIZONTAL;
-        constraints.weightx = 1;
-        constraints.gridx = 0;
-        constraints.gridy = 0;
-        constraints.gridwidth = 2;
-        entry.add(StyleManager.createLabel("[ CUSTOMER & ITEM ENTRY ]", StyleManager.ACCENT_BLUE,
-                StyleManager.FONT_HEADER), constraints);
-        constraints.gridwidth = 1;
-        addFormRow(entry, constraints, 1, "Customer:", createCustomerControl());
-        addFormRow(entry, constraints, 2, "Product:", productCombo);
-        addFormRow(entry, constraints, 3, "Quantity:", quantitySpinner);
-
-        JButton addButton = StyleManager.createButton("ADD TO CART", StyleManager.ACCENT_GREEN);
+        JButton addButton = new JButton("Add to cart");
         addButton.addActionListener(event -> addToBasket());
+        GridBagConstraints constraints = new GridBagConstraints();
+        constraints.insets = new Insets(8, 4, 4, 4);
         constraints.gridx = 0;
-        constraints.gridy = 4;
+        constraints.gridy = 3;
         constraints.gridwidth = 2;
+        constraints.fill = GridBagConstraints.HORIZONTAL;
         entry.add(addButton, constraints);
 
-        JPanel paymentPanel = new JPanel();
-        paymentPanel.setOpaque(false);
-        paymentPanel.setLayout(new BoxLayout(paymentPanel, BoxLayout.Y_AXIS));
-        paymentPanel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(1, 0, 0, 0, StyleManager.BORDER_COLOR),
-                BorderFactory.createEmptyBorder(10, 2, 0, 2)));
-        paymentPanel.add(StyleManager.createLabel("[ PAYMENT METHOD ]", StyleManager.ACCENT_BLUE,
-                StyleManager.FONT_HEADER));
-        paymentPanel.add(Box.createVerticalStrut(8));
+        // Mode de paiement
         ButtonGroup paymentGroup = new ButtonGroup();
-        stylePaymentOption(cashRadio);
-        stylePaymentOption(cardRadio);
-        stylePaymentOption(mobileRadio);
         paymentGroup.add(cashRadio);
         paymentGroup.add(cardRadio);
         paymentGroup.add(mobileRadio);
-        paymentPanel.add(cashRadio);
-        paymentPanel.add(Box.createVerticalStrut(4));
-        paymentPanel.add(cardRadio);
-        paymentPanel.add(Box.createVerticalStrut(4));
-        paymentPanel.add(mobileRadio);
+        JPanel payment = new JPanel(new GridLayout(0, 1, 0, 4));
+        payment.setBorder(BorderFactory.createTitledBorder("Payment method"));
+        payment.add(cashRadio);
+        payment.add(cardRadio);
+        payment.add(mobileRadio);
 
-        panel.add(entry, BorderLayout.NORTH);
-        panel.add(paymentPanel, BorderLayout.CENTER);
-        styleInput(customerCombo);
-        styleInput(productCombo);
-        styleInput(quantitySpinner);
-        return panel;
+        JPanel stack = new JPanel(new BorderLayout(0, 10));
+        stack.add(entry, BorderLayout.NORTH);
+        stack.add(payment, BorderLayout.CENTER);
+
+        JPanel left = new JPanel(new BorderLayout());
+        left.add(stack, BorderLayout.NORTH);
+        return left;
     }
 
     private JPanel createCustomerControl() {
         JPanel control = new JPanel(new BorderLayout(6, 0));
-        control.setOpaque(false);
-        JButton newCustomerButton = StyleManager.createButton("+ New", StyleManager.ACCENT_BLUE);
-        newCustomerButton.setPreferredSize(new java.awt.Dimension(85, 32));
+        JButton newCustomerButton = new JButton("New");
         newCustomerButton.addActionListener(event -> addCustomer());
         control.add(customerCombo, BorderLayout.CENTER);
         control.add(newCustomerButton, BorderLayout.EAST);
@@ -239,15 +188,9 @@ public class SaleView extends JFrame {
         JTextField phoneField = StyleManager.createField();
 
         JPanel form = new JPanel(new GridBagLayout());
-        form.setBackground(StyleManager.BG_DARK);
-        form.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
-        GridBagConstraints constraints = new GridBagConstraints();
-        constraints.insets = new Insets(5, 5, 5, 5);
-        constraints.fill = GridBagConstraints.HORIZONTAL;
-        constraints.weightx = 1;
-        addCustomerField(form, constraints, 0, "Customer ID:", idField);
-        addCustomerField(form, constraints, 1, "Name:", nameField);
-        addCustomerField(form, constraints, 2, "Phone:", phoneField);
+        StyleManager.addRow(form, 0, "Customer ID:", idField);
+        StyleManager.addRow(form, 1, "Name:", nameField);
+        StyleManager.addRow(form, 2, "Phone:", phoneField);
 
         int choice = JOptionPane.showConfirmDialog(this, form, "Add New Customer",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
@@ -285,76 +228,27 @@ public class SaleView extends JFrame {
         return largestId + 1;
     }
 
-    private void addCustomerField(JPanel form, GridBagConstraints constraints, int row,
-            String label, JTextField field) {
-        constraints.gridy = row;
-        constraints.gridx = 0;
-        constraints.weightx = 0;
-        form.add(StyleManager.createLabel(label, StyleManager.TEXT_MUTED, StyleManager.FONT_BODY), constraints);
-        constraints.gridx = 1;
-        constraints.weightx = 1;
-        form.add(field, constraints);
-    }
-
     private void showCustomerError(String message) {
         JOptionPane.showMessageDialog(this, message, "Customer Error", JOptionPane.ERROR_MESSAGE);
     }
 
-    private void addFormRow(JPanel panel, GridBagConstraints constraints, int row, String label,
-            java.awt.Component input) {
-        constraints.gridy = row;
-        constraints.gridx = 0;
-        constraints.weightx = 0;
-        panel.add(StyleManager.createLabel(label, StyleManager.TEXT_MUTED, StyleManager.FONT_BODY), constraints);
-        constraints.gridx = 1;
-        constraints.weightx = 1;
-        panel.add(input, constraints);
-    }
-
     private JPanel buildBasketPanel() {
-        JPanel panel = StyleManager.createCard();
-        panel.setLayout(new BorderLayout(0, 10));
-        JPanel title = new JPanel(new BorderLayout());
-        title.setOpaque(false);
-        title.add(StyleManager.createLabel("[ CUSTOMER CART ]", StyleManager.ACCENT_BLUE,
-                StyleManager.FONT_HEADER), BorderLayout.WEST);
-        JButton removeButton = StyleManager.createButton("Remove", StyleManager.ACCENT_RED);
-        removeButton.setPreferredSize(new java.awt.Dimension(105, 30));
+        JButton removeButton = new JButton("Remove selected item");
         removeButton.addActionListener(event -> removeSelectedItem());
-        title.add(removeButton, BorderLayout.EAST);
+        JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        top.add(removeButton);
 
-        basketTable.setFillsViewportHeight(true);
-        basketTable.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
-        JScrollPane scrollPane = new JScrollPane(basketTable);
-        scrollPane.getViewport().setBackground(StyleManager.BG_PANEL);
-        JPanel totalPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 2));
-        totalPanel.setOpaque(false);
-        totalPanel.add(totalLabel);
+        JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        bottom.add(totalLabel);
 
-        panel.add(title, BorderLayout.NORTH);
-        panel.add(scrollPane, BorderLayout.CENTER);
-        panel.add(totalPanel, BorderLayout.SOUTH);
+        JPanel panel = new JPanel(new BorderLayout(0, 8));
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createTitledBorder("Cart"),
+                BorderFactory.createEmptyBorder(4, 4, 4, 4)));
+        panel.add(top, BorderLayout.NORTH);
+        panel.add(new JScrollPane(basketTable), BorderLayout.CENTER);
+        panel.add(bottom, BorderLayout.SOUTH);
         return panel;
-    }
-
-    private void stylePaymentOption(JRadioButton option) {
-        option.setOpaque(false);
-        option.setForeground(StyleManager.TEXT_PRIMARY);
-        option.setFont(StyleManager.FONT_BODY);
-        option.setFocusPainted(false);
-    }
-
-    private void styleInput(JComboBox<?> combo) {
-        combo.setBackground(StyleManager.BG_DARK);
-        combo.setForeground(StyleManager.TEXT_PRIMARY);
-        combo.setFont(StyleManager.FONT_BODY);
-    }
-
-    private void styleInput(JSpinner spinner) {
-        spinner.setFont(StyleManager.FONT_BODY);
-        spinner.setBorder(BorderFactory.createLineBorder(StyleManager.BORDER_COLOR));
-        spinner.getEditor().getComponent(0).setBackground(StyleManager.BG_DARK);
-        spinner.getEditor().getComponent(0).setForeground(StyleManager.TEXT_PRIMARY);
     }
 
     private void refreshProducts() {
@@ -413,7 +307,7 @@ public class SaleView extends JFrame {
 
     private void validateSale() {
         if (basket.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Add at least one item before completing the sale.",
+            JOptionPane.showMessageDialog(this, "Add at least one item before completing the sale.",
                     "Empty Cart", JOptionPane.WARNING_MESSAGE);
             return;
         }
@@ -443,7 +337,7 @@ public class SaleView extends JFrame {
     }
 
     private Sale createSaleFromBasket() {
-        Sale sale = new Sale(0, LocalDate.now(), cashier);
+        Sale sale = new Sale(0, LocalDateTime.now(), cashier);
         List<Product> soldProducts = new ArrayList<>();
         for (CartItem item : basket) {
             for (int index = 0; index < item.quantity; index++) {
@@ -482,24 +376,18 @@ public class SaleView extends JFrame {
 
     private Double requestCashReceived() {
         JTextField amountField = StyleManager.createField();
-        JLabel changeAmountLabel = StyleManager.createLabel("Change: -- FCFA",
-                StyleManager.TEXT_MUTED, StyleManager.FONT_BODY);
+        JLabel changeAmountLabel = new JLabel("Change: -- $");
         JPanel cashDialog = new JPanel(new GridBagLayout());
-        cashDialog.setBackground(StyleManager.BG_DARK);
-        cashDialog.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
         GridBagConstraints constraints = new GridBagConstraints();
         constraints.insets = new Insets(6, 6, 6, 6);
         constraints.fill = GridBagConstraints.HORIZONTAL;
         constraints.gridx = 0;
         constraints.gridy = 0;
         constraints.gridwidth = 2;
-        cashDialog.add(StyleManager.createLabel("Amount due: " + formatMoney(currentTotal()),
-                StyleManager.TEXT_PRIMARY, StyleManager.FONT_HEADER), constraints);
+        cashDialog.add(StyleManager.createBoldLabel("Amount due: " + formatMoney(currentTotal())), constraints);
         constraints.gridy = 1;
         constraints.gridwidth = 1;
-        constraints.weightx = 0;
-        cashDialog.add(StyleManager.createLabel("Cash received (FCFA):", StyleManager.TEXT_MUTED,
-                StyleManager.FONT_BODY), constraints);
+        cashDialog.add(new JLabel("Cash received ($):"), constraints);
         constraints.gridx = 1;
         constraints.weightx = 1;
         cashDialog.add(amountField, constraints);
@@ -543,15 +431,15 @@ public class SaleView extends JFrame {
     private void refreshDialogChange(JTextField amountField, JLabel changeAmountLabel) {
         Double received = parseAmount(amountField.getText());
         if (received == null) {
-            changeAmountLabel.setText("Change: -- FCFA");
-            changeAmountLabel.setForeground(StyleManager.TEXT_MUTED);
+            changeAmountLabel.setText("Change: -- $");
+            changeAmountLabel.setForeground(null);
             return;
         }
         double difference = received - currentTotal();
         changeAmountLabel.setText(difference >= 0
                 ? "Change: " + formatMoney(difference)
-                : "Amount due: " + formatMoney(-difference));
-        changeAmountLabel.setForeground(difference >= 0 ? StyleManager.ACCENT_GREEN : StyleManager.ACCENT_RED);
+                : "Still due: " + formatMoney(-difference));
+        changeAmountLabel.setForeground(difference >= 0 ? StyleManager.SUCCESS : StyleManager.DANGER);
     }
 
     private Double parseAmount(String amount) {
@@ -580,11 +468,11 @@ public class SaleView extends JFrame {
             basketModel.addRow(new Object[] { item.product.getDesignation(), item.quantity,
                     formatMoney(item.product.getSellingPrice()), formatMoney(subtotal) });
         }
-        totalLabel.setText("TOTAL DUE: " + formatMoney(total));
+        totalLabel.setText("Total due: " + formatMoney(total));
     }
 
     private String formatMoney(double amount) {
-        return String.format("%.0f FCFA", amount);
+        return String.format("%.0f $", amount);
     }
 
     private static final class CartItem {
@@ -598,6 +486,7 @@ public class SaleView extends JFrame {
     }
 
     public static void main(String[] args) {
+        StyleManager.applyLookAndFeel();
         javax.swing.SwingUtilities.invokeLater(() -> new SaleView().setVisible(true));
     }
 }

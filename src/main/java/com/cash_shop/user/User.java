@@ -9,6 +9,7 @@ public class User {
     private final String email;
     private final Role role;
     private final String employeeName;
+    private final String employeeMatricule;
 
     public User(String username, String password, String email) {
         this(username, password, email, null);
@@ -19,11 +20,17 @@ public class User {
     }
 
     public User(String username, String password, String email, Role role, String employeeName) {
+        this(username, password, email, role, employeeName, "");
+    }
+
+    public User(String username, String password, String email, Role role, String employeeName,
+            String employeeMatricule) {
         this.username = username;
         this.password = password;
         this.email = email;
         this.role = role;
         this.employeeName = employeeName;
+        this.employeeMatricule = employeeMatricule;
     }
 
     public String getUsername() {return username;}
@@ -31,4 +38,5 @@ public class User {
     public String getEmail() {return email;}
     public Role getRole() {return role;}
     public String getEmployeeName() {return employeeName;}
+    public String getEmployeeMatricule() {return employeeMatricule;}
 }

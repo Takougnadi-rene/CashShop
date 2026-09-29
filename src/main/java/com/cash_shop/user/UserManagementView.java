@@ -1,10 +1,11 @@
 package com.cash_shop.user;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.FlowLayout;
 
+import javax.swing.JButton;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
@@ -16,18 +17,13 @@ import com.cash_shop.common.StyleManager;
 
 public class UserManagementView extends JFrame {
     private final UserService userService = new UserService();
-    private final DefaultTableModel tableModel = new DefaultTableModel(new String[] { "Login", "Email" }, 0) {
-        @Override
-        public boolean isCellEditable(int row, int column) {
-            return false;
-        }
-    };
+    private final DefaultTableModel tableModel = StyleManager.createReadOnlyModel("Login", "Email");
     private final JTable table = StyleManager.createTable(tableModel);
-    private final JPasswordField passwordField = new JPasswordField();
+    private final JPasswordField passwordField = new JPasswordField(16);
 
     public UserManagementView() {
         setTitle("User Management");
-        setSize(700, 480);
+        setSize(650, 450);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         buildUI();
@@ -35,37 +31,25 @@ public class UserManagementView extends JFrame {
     }
 
     private void buildUI() {
-        JPanel main = new JPanel(new BorderLayout(10, 10));
-        main.setBackground(StyleManager.BG_DARK);
-        main.setBorder(javax.swing.BorderFactory.createEmptyBorder(12, 12, 12, 12));
-        main.add(StyleManager.createLabel("USER MANAGEMENT", StyleManager.ACCENT_GOLD,
-                StyleManager.FONT_TITLE), BorderLayout.NORTH);
-        main.add(new JScrollPane(table), BorderLayout.CENTER);
-
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 4));
-        actions.setOpaque(false);
-        passwordField.setBackground(StyleManager.BG_DARK);
-        passwordField.setForeground(StyleManager.TEXT_PRIMARY);
-        passwordField.setCaretColor(StyleManager.ACCENT_GOLD);
-        passwordField.setFont(StyleManager.FONT_BODY);
-        passwordField.setBorder(javax.swing.BorderFactory.createCompoundBorder(
-                javax.swing.BorderFactory.createLineBorder(StyleManager.BORDER_COLOR),
-                javax.swing.BorderFactory.createEmptyBorder(4, 8, 4, 8)));
-        passwordField.setColumns(16);
-
-        javax.swing.JButton updatePassword = StyleManager.createButton("Reset Password", StyleManager.ACCENT_BLUE);
-        javax.swing.JButton refresh = StyleManager.createButton("Refresh", StyleManager.ACCENT_GREEN);
-        javax.swing.JButton close = StyleManager.createButton("Close", new Color(80, 80, 100));
+        JButton updatePassword = new JButton("Reset Password");
+        JButton refresh = new JButton("Refresh");
+        JButton close = new JButton("Close");
         updatePassword.addActionListener(event -> resetPassword());
         refresh.addActionListener(event -> refreshUsers());
         close.addActionListener(event -> dispose());
-        actions.add(StyleManager.createLabel("New password:", StyleManager.TEXT_MUTED, StyleManager.FONT_SMALL));
+
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 4));
+        actions.add(new JLabel("New password:"));
         actions.add(passwordField);
         actions.add(updatePassword);
         actions.add(refresh);
         actions.add(close);
-        main.add(actions, BorderLayout.SOUTH);
-        setContentPane(main);
+
+        JPanel page = StyleManager.createPage();
+        page.add(StyleManager.createTitle("User management"), BorderLayout.NORTH);
+        page.add(new JScrollPane(table), BorderLayout.CENTER);
+        page.add(actions, BorderLayout.SOUTH);
+        setContentPane(page);
     }
 
     private void refreshUsers() {

@@ -5,7 +5,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Timestamp;
 import java.sql.Types;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,7 +25,7 @@ public class SaleDAO {
         try (Connection connection = DBConnection.getConnection();
                 PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setInt(1, sale.getSaleId());
-            ps.setDate(2, java.sql.Date.valueOf(sale.getSaleDate()));
+            ps.setTimestamp(2, Timestamp.valueOf(sale.getSaleDate()));
             ps.setString(3, sale.getCashier().getMatricule());
             ps.executeUpdate();
         } catch (SQLException e) {
@@ -35,7 +37,7 @@ public class SaleDAO {
         String sql = "UPDATE sales SET sale_date = ?, cashier = ? WHERE sale_id = ?";
         try (Connection connection = DBConnection.getConnection();
                 PreparedStatement ps = connection.prepareStatement(sql)) {
-            ps.setDate(1, java.sql.Date.valueOf(sale.getSaleDate()));
+            ps.setTimestamp(1, Timestamp.valueOf(sale.getSaleDate()));
             ps.setString(2, sale.getCashier().getMatricule());
             ps.setInt(3, sale.getSaleId());
             ps.executeUpdate();
@@ -62,7 +64,7 @@ public class SaleDAO {
                 PreparedStatement statement = connection.prepareStatement(sql);
                 ResultSet results = statement.executeQuery()) {
             if (results.next()) {
-                sale = new Sale(results.getInt("sale_id"), results.getDate("sale_date").toLocalDate(), null);
+                sale = new Sale(results.getInt("sale_id"), results.getTimestamp("sale_date").toLocalDateTime(), null);
             }
         } catch (SQLException e) {
            // e.printStackTrace();
@@ -77,7 +79,7 @@ public class SaleDAO {
                 PreparedStatement statement = connection.prepareStatement(sql);
                 ResultSet results = statement.executeQuery()) {
             while (results.next()) {
-                Sale sale = new Sale(results.getInt("sale_id"), results.getDate("sale_date").toLocalDate(), null);
+                Sale sale = new Sale(results.getInt("sale_id"), results.getTimestamp("sale_date").toLocalDateTime(), null);
                 sales.add(sale);
             }
         } catch (SQLException e) {
@@ -94,6 +96,10 @@ public class SaleDAO {
             throw new IllegalArgumentException("Payment method is required.");
         }
 
+        LocalDateTime validationTime = LocalDateTime.now();
+        Timestamp validationTimestamp = Timestamp.valueOf(validationTime);
+        sale.setSaleDate(validationTime);
+
         try (Connection connection = DBConnection.getConnection()) {
             boolean originalAutoCommit = connection.getAutoCommit();
             int originalIsolation = connection.getTransactionIsolation();
@@ -106,7 +112,7 @@ public class SaleDAO {
                 String saleSql = "INSERT INTO sales(sale_date, cashier) VALUES (?, ?)";
                 try (PreparedStatement statement = connection.prepareStatement(saleSql,
                         Statement.RETURN_GENERATED_KEYS)) {
-                    statement.setDate(1, java.sql.Date.valueOf(sale.getSaleDate()));
+                    statement.setTimestamp(1, validationTimestamp);
                     if (sale.getCashier() == null) {
                         statement.setNull(2, Types.VARCHAR);
                     } else {
@@ -156,7 +162,7 @@ public class SaleDAO {
                     statement.setDouble(2, total);
                         statement.setString(3, paymentMode == Payment.PaymentMode.MOBILE_PAYMENT
                             ? "MOBILE_MONEY" : paymentMode.name());
-                    statement.setDate(4, java.sql.Date.valueOf(sale.getSaleDate()));
+                    statement.setTimestamp(4, validationTimestamp);
                     statement.setInt(5, saleId);
                     statement.executeUpdate();
                 }
@@ -165,7 +171,7 @@ public class SaleDAO {
                     + "VALUES (?, ?, ?, ?, ?)";
                 try (PreparedStatement statement = connection.prepareStatement(billSql)) {
                     statement.setInt(1, billNumber);
-                    statement.setDate(2, java.sql.Date.valueOf(sale.getSaleDate()));
+                    statement.setTimestamp(2, validationTimestamp);
                     if (customer == null) {
                         statement.setNull(3, Types.INTEGER);
                     } else {

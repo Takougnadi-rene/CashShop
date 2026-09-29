@@ -1,82 +1,119 @@
 package com.cash_shop.common;
 
+import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Cursor;
-import java.awt.Dimension;
+import java.awt.Component;
+import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.ListSelectionModel;
+import javax.swing.UIManager;
+import javax.swing.table.DefaultTableModel;
+
+/**
+ * Petits outils pour garder toutes les fenêtres simples et cohérentes
+ * (apparence standard du système, fond clair, aucun style personnalisé).
+ */
 public class StyleManager {
-    // Couleurs thème sombre professionnel
-    public static final Color BG_DARK      = new Color(18, 18, 28);
-    public static final Color BG_PANEL     = new Color(28, 28, 42);
-    public static final Color BG_CARD      = new Color(38, 38, 56);
-    public static final Color ACCENT_GOLD  = new Color(255, 193, 7);
-    public static final Color ACCENT_BLUE  = new Color(33, 150, 243);
-    public static final Color ACCENT_GREEN = new Color(76, 175, 80);
-    public static final Color ACCENT_RED   = new Color(244, 67, 54);
-    public static final Color TEXT_PRIMARY = new Color(236, 236, 240);
-    public static final Color TEXT_MUTED   = new Color(140, 140, 160);
-    public static final Color BORDER_COLOR = new Color(55, 55, 75);
+    public static final Color SUCCESS = new Color(0, 128, 0);
+    public static final Color WARNING = new Color(200, 120, 0);
+    public static final Color DANGER = new Color(192, 0, 0);
 
-    public static final Font FONT_TITLE  = new Font("Consolas", Font.BOLD, 18);
-    public static final Font FONT_HEADER = new Font("Consolas", Font.BOLD, 14);
-    public static final Font FONT_BODY   = new Font("Consolas", Font.PLAIN, 12);
-    public static final Font FONT_SMALL  = new Font("Consolas", Font.PLAIN, 11);
-
-    public static javax.swing.JButton createButton(String text, Color bg) {
-        javax.swing.JButton btn = new javax.swing.JButton(text);
-        btn.setBackground(bg);
-        btn.setForeground(Color.WHITE);
-        btn.setFont(FONT_BODY);
-        btn.setFocusPainted(false);
-        btn.setBorderPainted(false);
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btn.setPreferredSize(new Dimension(140, 34));
-        return btn;
+    /** À appeler une fois au démarrage : utilise l'apparence native du système. */
+    public static void applyLookAndFeel() {
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception exception) {
+            // On garde l'apparence par défaut de Swing.
+        }
     }
 
-    public static javax.swing.JTextField createField() {
-        javax.swing.JTextField tf = new javax.swing.JTextField();
-        tf.setBackground(BG_DARK);
-        tf.setForeground(TEXT_PRIMARY);
-        tf.setCaretColor(ACCENT_GOLD);
-        tf.setFont(FONT_BODY);
-        tf.setBorder(javax.swing.BorderFactory.createCompoundBorder(
-            javax.swing.BorderFactory.createLineBorder(BORDER_COLOR),
-            javax.swing.BorderFactory.createEmptyBorder(4, 8, 4, 8)
-        ));
-        return tf;
+    public static JLabel createTitle(String text) {
+        JLabel label = new JLabel(text);
+        label.setFont(label.getFont().deriveFont(Font.BOLD, 18f));
+        return label;
     }
 
-    public static javax.swing.JLabel createLabel(String text, Color color, Font font) {
-        javax.swing.JLabel lbl = new javax.swing.JLabel(text);
-        lbl.setForeground(color);
-        lbl.setFont(font);
-        return lbl;
+    public static JLabel createBoldLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setFont(label.getFont().deriveFont(Font.BOLD));
+        return label;
     }
 
-    public static javax.swing.JPanel createCard() {
-        javax.swing.JPanel p = new javax.swing.JPanel();
-        p.setBackground(BG_CARD);
-        p.setBorder(javax.swing.BorderFactory.createCompoundBorder(
-            javax.swing.BorderFactory.createLineBorder(BORDER_COLOR),
-            javax.swing.BorderFactory.createEmptyBorder(10, 10, 10, 10)
-        ));
-        return p;
+    /** Panneau principal d'une fenêtre : BorderLayout avec marges. */
+    public static JPanel createPage() {
+        JPanel page = new JPanel(new BorderLayout(10, 10));
+        page.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+        return page;
     }
 
-    public static javax.swing.JTable createTable(javax.swing.table.DefaultTableModel model) {
-        javax.swing.JTable table = new javax.swing.JTable(model);
-        table.setBackground(BG_PANEL);
-        table.setForeground(TEXT_PRIMARY);
-        table.setGridColor(BORDER_COLOR);
-        table.setFont(FONT_BODY);
-        table.setRowHeight(26);
-        table.getTableHeader().setBackground(BG_CARD);
-        table.getTableHeader().setForeground(ACCENT_GOLD);
-        table.getTableHeader().setFont(FONT_HEADER);
-        table.setSelectionBackground(new Color(60, 60, 100));
-        table.setSelectionForeground(TEXT_PRIMARY);
+    /** Panneau de formulaire (étiquette + champ sur chaque ligne) avec un titre. */
+    public static JPanel createForm(String title) {
+        JPanel form = new JPanel(new GridBagLayout());
+        form.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createTitledBorder(title),
+                BorderFactory.createEmptyBorder(4, 4, 4, 4)));
+        return form;
+    }
+
+    public static void addRow(JPanel form, int row, String label, JComponent field) {
+        GridBagConstraints constraints = new GridBagConstraints();
+        constraints.insets = new Insets(4, 4, 4, 4);
+        constraints.gridy = row;
+        constraints.gridx = 0;
+        constraints.anchor = GridBagConstraints.WEST;
+        form.add(new JLabel(label), constraints);
+        constraints.gridx = 1;
+        constraints.weightx = 1;
+        constraints.fill = GridBagConstraints.HORIZONTAL;
+        form.add(field, constraints);
+    }
+
+    public static JPanel createButtonBar(JButton... buttons) {
+        JPanel bar = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 4));
+        for (JButton button : buttons) {
+            bar.add(button);
+        }
+        return bar;
+    }
+
+    public static JTextField createField() {
+        return new JTextField(15);
+    }
+
+    public static DefaultTableModel createReadOnlyModel(String... columns) {
+        return new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+    }
+
+    public static JTable createTable(DefaultTableModel model) {
+        JTable table = new JTable(model);
+        table.setRowHeight(24);
+        table.setFillsViewportHeight(true);
+        table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         return table;
+    }
+
+    public static void showError(Component parent, String message) {
+        JOptionPane.showMessageDialog(parent, message, "Error", JOptionPane.ERROR_MESSAGE);
+    }
+
+    public static void showInfo(Component parent, String message) {
+        JOptionPane.showMessageDialog(parent, message, "Information", JOptionPane.INFORMATION_MESSAGE);
     }
 }

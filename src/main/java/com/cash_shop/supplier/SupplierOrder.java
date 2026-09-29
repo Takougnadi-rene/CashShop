@@ -1,5 +1,7 @@
 package com.cash_shop.supplier;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -8,19 +10,31 @@ import com.cash_shop.product.Product;
 public class SupplierOrder {
     public enum OrderStatus {
         PENDING,
-        COMPLETED,
-        CANCELLED
+        APPROUVED,
+        DENIDED,
+        DELIVERED
     }
 
     private int orderNumber;
     private Date orderDate;
-    private List<Product> listOfProducts;
+    private int supplierCode;
+    private String supplierName;
+    private BigDecimal totalAmount;
     private OrderStatus status;
+    private List<Product> listOfProducts = new ArrayList<>();
 
     public SupplierOrder(int orderNumber, Date orderDate, List<Product> listOfProducts, OrderStatus status) {
+        this(orderNumber, orderDate, 0, "", BigDecimal.ZERO, status);
+        this.listOfProducts = listOfProducts == null ? new ArrayList<>() : new ArrayList<>(listOfProducts);
+    }
+
+    public SupplierOrder(int orderNumber, Date orderDate, int supplierCode, String supplierName,
+            BigDecimal totalAmount, OrderStatus status) {
         this.orderNumber = orderNumber;
         this.orderDate = orderDate;
-        this.listOfProducts = listOfProducts;
+        this.supplierCode = supplierCode;
+        this.supplierName = supplierName;
+        this.totalAmount = totalAmount;
         this.status = status;
     }
 
@@ -34,19 +48,27 @@ public class SupplierOrder {
     }
 
     public Date getOrderDate() {
-        return orderDate;
+        return new Date(orderDate.getTime());
     }
 
     public void setOrderDate(Date orderDate) {
         this.orderDate = orderDate;
     }
 
-    public List<Product> getListOfProducts() {
-        return listOfProducts;
+    public int getSupplierCode() {
+        return supplierCode;
     }
 
-    public void setListOfProducts(List<Product> listOfProducts) {
-        this.listOfProducts = listOfProducts;
+    public String getSupplierName() {
+        return supplierName;
+    }
+
+    public BigDecimal getTotalAmount() {
+        return totalAmount;
+    }
+
+    public void setTotalAmount(BigDecimal totalAmount) {
+        this.totalAmount = totalAmount;
     }
 
     public OrderStatus getStatus() {
@@ -55,5 +77,13 @@ public class SupplierOrder {
 
     public void setStatus(OrderStatus status) {
         this.status = status;
+    }
+
+    public List<Product> getListOfProducts() {
+        return listOfProducts;
+    }
+
+    public void setListOfProducts(List<Product> listOfProducts) {
+        this.listOfProducts = listOfProducts == null ? new ArrayList<>() : new ArrayList<>(listOfProducts);
     }
 }

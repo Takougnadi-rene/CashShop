@@ -69,7 +69,8 @@ class UserDAO {
                         Role role = Role.valueOf(roleName.trim().toUpperCase(Locale.ROOT));
                         String email = results.getString("email");
                         return new User(results.getString("login"), results.getString("password_user"),
-                                email, role, findEmployeeName(connection, email));
+                            email, role, findEmployeeName(connection, email),
+                            findEmployeeMatricule(connection, email));
                     } catch (IllegalArgumentException | NullPointerException exception) {
                         throw new IllegalStateException("Unsupported role in users_role: " + roleName, exception);
                     }
@@ -92,6 +93,19 @@ class UserDAO {
             }
         } catch (SQLException exception) {
             return email;
+        }
+    }
+
+    private String findEmployeeMatricule(Connection connection, String email) {
+        String sql = "SELECT matricule FROM employees "
+                + "WHERE LOWER(TRIM(email)) = LOWER(TRIM(?)) LIMIT 1";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, email);
+            try (ResultSet results = statement.executeQuery()) {
+                return results.next() ? results.getString("matricule") : "";
+            }
+        } catch (SQLException exception) {
+            return "";
         }
     }
 

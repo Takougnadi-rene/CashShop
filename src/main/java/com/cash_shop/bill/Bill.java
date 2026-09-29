@@ -34,7 +34,7 @@ public class Bill {
 
     //bill generator method
     public String genererFacture() {
-        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
         StringBuilder sb = new StringBuilder();
         double total = new SaleService().calculateTotal(sale);
 
@@ -48,7 +48,7 @@ public class Bill {
                 cashier != null ? cashier.getFirstName() + " " + cashier.getLastName() : "N/A",
                 customer != null ? customer.getName() : "Walk-in"));
         sb.append("\n------------------------------------------------\n");
-        sb.append(String.format("%-20s %5s %15s\n", "PRODUCT", "QTY", "PRICE (FCFA)"));
+        sb.append(String.format("%-20s %5s %15s\n", "PRODUCT", "QTY", "PRICE ($)"));
         sb.append("------------------------------------------------\n");
 
         Map<Integer, Product> productsByReference = new LinkedHashMap<>();
@@ -59,12 +59,12 @@ public class Bill {
         }
         for (Map.Entry<Integer, Product> entry : productsByReference.entrySet()) {
             Product product = entry.getValue();
-            sb.append(String.format("%-20s %5d %15.0f FCFA\n",
+            sb.append(String.format("%-20s %5d %15.0f $\n",
                     product.getDesignation(), quantitiesByReference.get(entry.getKey()), product.getSellingPrice()));
         }
 
         sb.append("\n------------------------------------------------\n");
-        sb.append(String.format("TOTAL DUE:               %15.0f FCFA\n", total));
+        sb.append(String.format("TOTAL DUE:               %15.0f $\n", total));
         sb.append("\n================================================\n");
         sb.append("         Thank you for shopping with us!\n");
         sb.append("         See you again soon.\n");

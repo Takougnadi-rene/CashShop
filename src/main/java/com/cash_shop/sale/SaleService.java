@@ -1,6 +1,7 @@
 package com.cash_shop.sale;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import com.cash_shop.employee.Employee;
@@ -15,6 +16,10 @@ public class SaleService {
     }
 
     public void newSale(int saleId, LocalDate saleDate, Employee cashier) {
+        newSale(saleId, saleDate == null ? null : saleDate.atStartOfDay(), cashier);
+    }
+
+    public void newSale(int saleId, LocalDateTime saleDate, Employee cashier) {
         if (cashier == null) {
             throw new IllegalArgumentException("Cashier cannot be null");
         }

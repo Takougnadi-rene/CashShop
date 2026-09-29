@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+
 import com.cash_shop.common.DBConnection;
 
 public class BillDAO {
@@ -13,7 +14,7 @@ public class BillDAO {
         try (Connection connection = DBConnection.getConnection();
              PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setInt(1, bill.getBillNumber());
-            ps.setDate(2, new java.sql.Date(bill.getBillDate().getTime()));
+            ps.setTimestamp(2, new java.sql.Timestamp(bill.getBillDate().getTime()));
             ps.setInt(3, bill.getCustomer().getCustomerId());
             ps.setString(4, bill.getCashier().getMatricule());
             ps.executeUpdate();
@@ -31,7 +32,7 @@ public class BillDAO {
                 if (rs.next()) {
                     return new Bill(
                         rs.getInt("bill_number"),
-                        rs.getDate("bill_date"),
+                        rs.getTimestamp("bill_date"),
                         null,  // customer: extend query if needed
                         null,  // cashier: extend query if needed
                         null   // sale: extend query if needed

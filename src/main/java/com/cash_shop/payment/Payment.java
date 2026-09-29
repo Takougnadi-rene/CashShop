@@ -1,6 +1,7 @@
 package com.cash_shop.payment;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Date;
 
 import com.cash_shop.sale.Sale;
@@ -17,12 +18,16 @@ public class Payment {
         MOBILE_PAYMENT
     }
 
-    public Payment(int paymentNumber, double amount, LocalDate paymentDate, Sale sale, PaymentMode paymentMode) {
+    public Payment(int paymentNumber, double amount, LocalDateTime paymentDate, Sale sale, PaymentMode paymentMode) {
         this.paymentNumber = paymentNumber;
         this.amount = amount;
-        this.paymentDate = java.sql.Date.valueOf(paymentDate);
+        this.paymentDate = paymentDate == null ? null : java.sql.Timestamp.valueOf(paymentDate);
         this.sale = sale;
         this.paymentMode = paymentMode.name();
+    }
+
+    public Payment(int paymentNumber, double amount, LocalDate paymentDate, Sale sale, PaymentMode paymentMode) {
+        this(paymentNumber, amount, paymentDate == null ? null : paymentDate.atStartOfDay(), sale, paymentMode);
     }
 
     public int getPaymentNumber() {return paymentNumber;}

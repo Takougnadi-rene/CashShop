@@ -12,7 +12,7 @@ import com.cash_shop.product.Product;
 
 public class AisleDAO {
     public void addAisle(Aisle aisle) {
-        String sql = "INSERT INTO aisles (code, name, category, aisle_chief) VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO aisles (aisle_code, aisle_name, category, aisle_chief) VALUES (?, ?, ?, ?)";
         try (Connection c = DBConnection.getConnection();
                 PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, aisle.getAisleCode());
@@ -37,11 +37,11 @@ public class AisleDAO {
     }
 
     public void addProductToAisle(Aisle aisle, Product product) {
-        String sql = "INSERT INTO aisle_products (aisle_code, product_reference) VALUES (?, ?)";
+        String sql = "INSERT INTO aisle_lines (aisle_code, reference) VALUES (?, ?)";
         try (Connection c = DBConnection.getConnection();
                 PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, aisle.getAisleCode());
-            ps.setString(2, String.valueOf(product.getReference()));
+            ps.setInt(2, product.getReference());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new IllegalStateException("Impossible d'acceder a la base de donnees.", e);
@@ -49,11 +49,11 @@ public class AisleDAO {
     }
 
     public void removeProductFromAisle(Aisle aisle, Product product) {
-        String sql = "DELETE FROM aisle_products WHERE aisle_code = ? AND product_reference = ?";
+        String sql = "DELETE FROM aisle_lines WHERE aisle_code = ? AND reference = ?";
         try (Connection c = DBConnection.getConnection();
                 PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, aisle.getAisleCode());
-            ps.setString(2, String.valueOf(product.getReference()));
+            ps.setInt(2, product.getReference());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new IllegalStateException("Impossible d'acceder a la base de donnees.", e);
@@ -61,7 +61,7 @@ public class AisleDAO {
     }
 
     public void searchProductInAisleRef(Aisle aisle, String productReference) {
-        String sql = "SELECT * FROM aisle_products WHERE aisle_code = ? AND product_reference = ?";
+        String sql = "SELECT * FROM aisle_lines WHERE aisle_code = ? AND reference = ?";
         try (Connection c = DBConnection.getConnection();
                 PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, aisle.getAisleCode());
@@ -79,7 +79,7 @@ public class AisleDAO {
     }
 
     public void searchProductInAisleDes(Aisle aisle, String productDesignation) {
-        String sql = "SELECT * FROM aisle_products ap JOIN products p ON ap.product_reference = p.reference WHERE ap.aisle_code = ? AND p.designation = ?";
+        String sql = "SELECT * FROM aisle_lines ap JOIN products p ON ap.reference = p.reference WHERE ap.aisle_code = ? AND p.designation = ?";
         try (Connection c = DBConnection.getConnection();
                 PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, aisle.getAisleCode());
@@ -97,15 +97,15 @@ public class AisleDAO {
     }
 
     public List<Aisle> getAllAisles() {
-        String sql = "SELECT code, name, category, aisle_chief FROM aisles ORDER BY code";
+        String sql = "SELECT aisle_code, aisle_name, category, aisle_chief FROM aisles ORDER BY aisle_code";
         List<Aisle> aisles = new ArrayList<>();
         try (Connection c = DBConnection.getConnection();
                 PreparedStatement ps = c.prepareStatement(sql);
                 ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 aisles.add(new Aisle(
-                    rs.getInt("code"),
-                    rs.getString("name"),
+                    rs.getInt("aisle_code"),
+                    rs.getString("aisle_name"),
                     rs.getString("category"),
                     rs.getString("aisle_chief")
                 ));
@@ -118,8 +118,8 @@ public class AisleDAO {
 
     public List<Product> getProductsForAisle(int aisleCode) {
         String sql = "SELECT p.reference, p.designation, p.purchase_price, p.selling_price, p.stock_quantity " +
-                     "FROM aisle_products ap " +
-                     "JOIN products p ON ap.product_reference = CAST(p.reference AS VARCHAR) " +
+                     "FROM aisle_lines ap " +
+                     "JOIN products p ON ap.reference = p.reference " +
                      "WHERE ap.aisle_code = ?";
         List<Product> products = new ArrayList<>();
         try (Connection c = DBConnection.getConnection();

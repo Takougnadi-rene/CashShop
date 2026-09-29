@@ -1,6 +1,7 @@
 package com.cash_shop.sale;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 
 import com.cash_shop.employee.Employee;
@@ -8,14 +9,18 @@ import com.cash_shop.product.Product;
 
 public class Sale {
     private int saleId;
-    private LocalDate saleDate;
+    private LocalDateTime saleDate;
     private Employee cashier;
     private ArrayList<Product> productsList;
 
-    public Sale(int saleId, LocalDate saleDate, Employee cashier) {
+    public Sale(int saleId, LocalDateTime saleDate, Employee cashier) {
         this.saleId = saleId;
         this.saleDate = saleDate;
         this.cashier = cashier;
+    }
+
+    public Sale(int saleId, LocalDate saleDate, Employee cashier) {
+        this(saleId, saleDate == null ? null : saleDate.atStartOfDay(), cashier);
     }
 
     public int getSaleId() {
@@ -26,12 +31,16 @@ public class Sale {
         this.saleId = saleId;
     }
 
-    public LocalDate getSaleDate() {
+    public LocalDateTime getSaleDate() {
         return saleDate;
     }
 
-    public void setSaleDate(LocalDate saleDate) {
+    public void setSaleDate(LocalDateTime saleDate) {
         this.saleDate = saleDate;
+    }
+
+    public void setSaleDate(LocalDate saleDate) {
+        this.saleDate = saleDate == null ? null : saleDate.atStartOfDay();
     }
 
     public Employee getCashier() {
