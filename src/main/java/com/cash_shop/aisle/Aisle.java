@@ -1,7 +1,6 @@
 package com.cash_shop.aisle;
 
 import java.util.ArrayList;
-
 import com.cash_shop.product.Product;
 
 public class Aisle {
@@ -21,26 +20,15 @@ public class Aisle {
 
     // Getters and Setters
     public int getAisleCode() {return aisleCode;}
-
     public void setAisleCode(int aisleCode) {this.aisleCode = aisleCode;}
-
     public String getAisleName() {return aisleName;}
-
     public void setAisleName(String aisleName) {this.aisleName = aisleName;}
-
     public String getAisleChief() {return aisleChief;}
-
     public String getAisleChiefName() {return aisleChief;}
-
     public void setAisleChief(String aisleChief) {this.aisleChief = aisleChief;}
-
     public void setAisleChiefName(String aisleChief) {this.aisleChief = aisleChief;}
-
     public ArrayList<Product> getProductsList() {return productsList;}
-
     public void setProductsList(ArrayList<Product> productsList) {this.productsList = productsList;}
-
     public String getCategory() {return category;}
-
     public void setCategory(String category) {this.category = category;}
 }

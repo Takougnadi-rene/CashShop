@@ -355,14 +355,14 @@ public class SupplierDAO {
     }
 
     private void requireOrderCreator(Role actor) {
-        if (actor != Role.STOREKEEPER && actor != Role.MANAGER) {
-            throw new SecurityException("Only a storekeeper can create or edit supplier orders.");
+        if (actor != Role.MANAGER) {
+            throw new SecurityException("Only a manager can create or edit supplier orders.");
         }
     }
 
     private void requireOrderReviewer(Role actor) {
-        if (actor != Role.ACCOUNTANT) {
-            throw new SecurityException("Only an accountant can approve or refuse supplier orders.");
+        if (actor != Role.COUNTER) {
+            throw new SecurityException("Only a counter can approve or refuse supplier orders.");
         }
     }
 

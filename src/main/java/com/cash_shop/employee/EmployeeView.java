@@ -2,8 +2,12 @@ package com.cash_shop.employee;
 
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -13,6 +17,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.Timer;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 
@@ -21,6 +26,7 @@ import com.cash_shop.common.StyleManager;
 import com.cash_shop.user.AccountCredentials;
 
 public class EmployeeView extends JFrame {
+    private static final Logger LOGGER = Logger.getLogger(EmployeeView.class.getName());
     private final JTextField tfEmployeeId = StyleManager.createField();
     private final JTextField tfFirstName = StyleManager.createField();
     private final JTextField tfLastName = StyleManager.createField();
@@ -36,7 +42,10 @@ public class EmployeeView extends JFrame {
     private final EmployeeService employeeService = new EmployeeService();
     private final EmailService emailService = new EmailService();
     private final List<Employee> employees = new ArrayList<>();
+    private final List<Employee> visibleEmployees = new ArrayList<>();
     private final boolean readOnly;
+    private boolean refreshing;
+    private final Timer refreshTimer = new Timer(5000, event -> refreshFromDatabase());
 
     public EmployeeView() {
         this(false);
@@ -56,6 +65,13 @@ public class EmployeeView extends JFrame {
         tfSalary.setEditable(!readOnly);
         cbRole.setEnabled(!readOnly);
         loadEmployees();
+        refreshTimer.start();
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosed(WindowEvent event) {
+                refreshTimer.stop();
+            }
+        });
     }
 
     private void buildUI() {
@@ -106,12 +122,32 @@ public class EmployeeView extends JFrame {
     }
 
     private void loadEmployees() {
+        String selectedMatricule = selectedEmployee == null ? null : selectedEmployee.getMatricule();
+        refreshing = true;
         employees.clear();
         employees.addAll(employeeDAO.getAllEmployees());
-        displayEmployees(employees);
+        searchEmployee();
+        if (selectedMatricule != null) {
+            boolean selectionRestored = false;
+            for (int index = 0; index < visibleEmployees.size(); index++) {
+                if (selectedMatricule.equals(visibleEmployees.get(index).getMatricule())) {
+                    selectedEmployee = visibleEmployees.get(index);
+                    table.setRowSelectionInterval(index, index);
+                    selectionRestored = true;
+                    break;
+                }
+            }
+            if (!selectionRestored) {
+                selectedEmployee = null;
+                table.clearSelection();
+            }
+        }
+        refreshing = false;
     }
 
     private void displayEmployees(List<Employee> employeeList) {
+        visibleEmployees.clear();
+        visibleEmployees.addAll(employeeList);
         tableModel.setRowCount(0);
         for (Employee employee : employeeList) {
             tableModel.addRow(new Object[] { employee.getMatricule(), employee.getFirstName(),
@@ -121,11 +157,14 @@ public class EmployeeView extends JFrame {
     }
 
     private void selectEmployee() {
-        int row = table.getSelectedRow();
-        if (row < 0 || row >= employees.size()) {
+        if (refreshing) {
             return;
         }
-        selectedEmployee = employees.get(row);
+        int row = table.getSelectedRow();
+        if (row < 0 || row >= visibleEmployees.size()) {
+            return;
+        }
+        selectedEmployee = visibleEmployees.get(row);
         tfEmployeeId.setText(selectedEmployee.getMatricule());
         tfFirstName.setText(selectedEmployee.getFirstName());
         tfLastName.setText(selectedEmployee.getLastName());
@@ -222,6 +261,14 @@ public class EmployeeView extends JFrame {
             }
         }
         displayEmployees(results);
+    }
+
+    private void refreshFromDatabase() {
+        try {
+            loadEmployees();
+        } catch (IllegalStateException exception) {
+            LOGGER.log(Level.FINE, "Unable to refresh employees.", exception);
+        }
     }
 
     private void clearForm() {

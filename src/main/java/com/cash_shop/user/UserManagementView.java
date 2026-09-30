@@ -2,6 +2,8 @@ package com.cash_shop.user;
 
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -11,6 +13,7 @@ import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.Timer;
 import javax.swing.table.DefaultTableModel;
 
 import com.cash_shop.common.StyleManager;
@@ -20,6 +23,7 @@ public class UserManagementView extends JFrame {
     private final DefaultTableModel tableModel = StyleManager.createReadOnlyModel("Login", "Email");
     private final JTable table = StyleManager.createTable(tableModel);
     private final JPasswordField passwordField = new JPasswordField(16);
+    private final Timer refreshTimer = new Timer(5000, event -> refreshUsers(false));
 
     public UserManagementView() {
         setTitle("User Management");
@@ -28,6 +32,13 @@ public class UserManagementView extends JFrame {
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         buildUI();
         refreshUsers();
+        refreshTimer.start();
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosed(WindowEvent event) {
+                refreshTimer.stop();
+            }
+        });
     }
 
     private void buildUI() {
@@ -53,13 +64,30 @@ public class UserManagementView extends JFrame {
     }
 
     private void refreshUsers() {
+        refreshUsers(true);
+    }
+
+    private void refreshUsers(boolean showError) {
         try {
+            int selectedRow = table.getSelectedRow();
+            String selectedUsername = selectedRow < 0 ? null
+                    : tableModel.getValueAt(table.convertRowIndexToModel(selectedRow), 0).toString();
             tableModel.setRowCount(0);
             for (User user : userService.getAllUsers()) {
                 tableModel.addRow(new Object[] { user.getUsername(), user.getEmail() });
             }
+            if (selectedUsername != null) {
+                for (int row = 0; row < tableModel.getRowCount(); row++) {
+                    if (selectedUsername.equals(tableModel.getValueAt(row, 0))) {
+                        table.setRowSelectionInterval(row, row);
+                        break;
+                    }
+                }
+            }
         } catch (IllegalStateException exception) {
-            showError(exception.getMessage());
+            if (showError) {
+                showError(exception.getMessage());
+            }
         }
     }
 

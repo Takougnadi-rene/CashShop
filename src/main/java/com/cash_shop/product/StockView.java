@@ -2,6 +2,7 @@ package com.cash_shop.product;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.Toolkit;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.ArrayList;
@@ -27,7 +28,7 @@ public class StockView extends JFrame {
     private final boolean readOnly;
     private final List<Product> products = new ArrayList<>();
     private final DefaultTableModel tableModel = StyleManager.createReadOnlyModel(
-            "Reference", "Product", "Available", "Minimum", "Stock Status", "Category");
+            "Reference", "Product", "Available", "Minimum", "Stock Status");
     private final JTable table = StyleManager.createTable(tableModel);
     private final Timer refreshTimer = new Timer(5000, event -> refreshStock(false));
 
@@ -38,7 +39,8 @@ public class StockView extends JFrame {
     public StockView(boolean readOnly) {
         this.readOnly = readOnly;
         setTitle("Stock Management");
-        setSize(800, 500);
+        setSize(Toolkit.getDefaultToolkit().getScreenSize());
+        setMinimumSize(Toolkit.getDefaultToolkit().getScreenSize());
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         buildUI();
@@ -107,19 +109,13 @@ public class StockView extends JFrame {
                 int quantity = product.getStockQuantity();
                 String status = quantity <= MINIMUM_STOCK ? "LOW" : quantity <= 20 ? "MEDIUM" : "OK";
                 tableModel.addRow(new Object[] { product.getReference(), product.getDesignation(), quantity,
-                        MINIMUM_STOCK, status, productCategory(product) });
+                        MINIMUM_STOCK, status });
             }
         } catch (IllegalStateException exception) {
             if (showError) showError(exception.getMessage());
         }
     }
 
-    private String productCategory(Product product) {
-        if (product instanceof FreshProduct) return "Fresh";
-        if (product instanceof ElectronicProduct) return "Electronic";
-        if (product instanceof ArtisanalProduct) return "Artisanal";
-        return "Standard";
-    }
 
     private void changeStock(boolean stockIn) {
         int row = table.getSelectedRow();

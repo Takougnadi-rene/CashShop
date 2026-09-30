@@ -2,6 +2,8 @@ package com.cash_shop.aisle;
 
 import java.awt.BorderLayout;
 import java.awt.GridLayout;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,16 +15,19 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.Timer;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 
 import com.cash_shop.common.StyleManager;
 import com.cash_shop.product.Product;
 import com.cash_shop.product.ProductDAO;
+import com.cash_shop.user.AccountManagementView;
 
 public class AisleView extends JFrame {
     private final boolean readOnly;
     private final String assignedManagerMatricule;
+    private final String accountUsername;
     private final AisleDAO aisleDAO = new AisleDAO();
     private final ProductDAO productDAO = new ProductDAO();
     private final List<Aisle> aisles = new ArrayList<>();
@@ -35,6 +40,7 @@ public class AisleView extends JFrame {
     private final JTable aisleTable = StyleManager.createTable(aisleModel);
     private final JTable productTable = StyleManager.createTable(productModel);
     private Aisle selectedAisle;
+    private final Timer refreshTimer = new Timer(5000, event -> refreshAisles());
 
     public AisleView() {
         this(false, null);
@@ -49,8 +55,17 @@ public class AisleView extends JFrame {
     }
 
     public AisleView(boolean readOnly, String assignedManagerMatricule) {
+        this(readOnly, assignedManagerMatricule, null);
+    }
+
+    public AisleView(String assignedManagerMatricule, String accountUsername) {
+        this(true, assignedManagerMatricule, accountUsername);
+    }
+
+    private AisleView(boolean readOnly, String assignedManagerMatricule, String accountUsername) {
         this.readOnly = readOnly;
         this.assignedManagerMatricule = assignedManagerMatricule;
+        this.accountUsername = accountUsername;
         setTitle(readOnly ? "Aisle Overview" : "Aisle Management");
         setSize(900, 600);
         setLocationRelativeTo(null);
@@ -58,6 +73,13 @@ public class AisleView extends JFrame {
         buildUI();
         refreshAisles();
         if (!readOnly) refreshProductChoices();
+        refreshTimer.start();
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosed(WindowEvent event) {
+                refreshTimer.stop();
+            }
+        });
     }
 
     private void buildUI() {
@@ -104,13 +126,22 @@ public class AisleView extends JFrame {
         JPanel page = StyleManager.createPage();
         page.add(StyleManager.createTitle("Aisles"), BorderLayout.NORTH);
         page.add(lists, BorderLayout.CENTER);
-        page.add(actions, BorderLayout.SOUTH);
+        JPanel footer = new JPanel(new BorderLayout());
+        if (accountUsername != null && !accountUsername.isBlank()) {
+            JButton accountButton = new JButton("Manage my account");
+            accountButton.addActionListener(event ->
+                new AccountManagementView(this, accountUsername).setVisible(true));
+            footer.add(accountButton, BorderLayout.WEST);
+        }
+        footer.add(actions, BorderLayout.EAST);
+        page.add(footer, BorderLayout.SOUTH);
 
         setContentPane(page);
     }
 
     private void refreshAisles() {
         try {
+            Integer selectedCode = selectedAisle == null ? null : selectedAisle.getAisleCode();
             aisles.clear();
             List<Aisle> loadedAisles = aisleDAO.getAllAisles();
             if (assignedManagerMatricule != null) {
@@ -128,10 +159,21 @@ public class AisleView extends JFrame {
             for (Aisle aisle : aisles) {
                 aisleModel.addRow(new Object[] { aisle.getAisleCode(), aisle.getAisleName() });
             }
-            selectedAisle = null;
             productModel.setRowCount(0);
+            int selectedIndex = 0;
+            if (selectedCode != null) {
+                for (int index = 0; index < aisles.size(); index++) {
+                    if (aisles.get(index).getAisleCode() == selectedCode) {
+                        selectedIndex = index;
+                        break;
+                    }
+                }
+            }
+            selectedAisle = null;
             if (!aisles.isEmpty()) {
-                aisleTable.setRowSelectionInterval(0, 0);
+                aisleTable.setRowSelectionInterval(selectedIndex, selectedIndex);
+            } else {
+                selectedAisle = null;
             }
         } catch (IllegalStateException exception) {
             showError(exception.getMessage());

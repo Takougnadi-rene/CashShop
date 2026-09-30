@@ -27,6 +27,22 @@ public class UserService {
         return userDAO.updatePassword(username, password);
     }
 
+    public boolean changePassword(String username, String currentPassword, String newPassword) {
+        if (username == null || username.trim().isEmpty()) {
+            throw new IllegalArgumentException("The signed-in user is required.");
+        }
+        if (currentPassword == null || currentPassword.isEmpty()) {
+            throw new IllegalArgumentException("Enter your current password.");
+        }
+        if (newPassword == null || newPassword.length() < 8) {
+            throw new IllegalArgumentException("Password must contain at least 8 characters.");
+        }
+        if (newPassword.equals(currentPassword)) {
+            throw new IllegalArgumentException("Choose a password different from the current one.");
+        }
+        return userDAO.changePassword(username, currentPassword, newPassword);
+    }
+
     public boolean register(String username, String password) {
         throw new IllegalArgumentException("An employee email is required to register a user.");
     }

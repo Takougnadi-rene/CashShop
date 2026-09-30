@@ -12,20 +12,38 @@ public class AccessServiceTest {
     private final AccessService accessService = new AccessService();
 
     @Test
-    public void accountantCanOnlyOpenReadOnlyBusinessModules() {
-        assertEquals(EnumSet.of(Module.DASHBOARD, Module.EMPLOYEES, Module.PRODUCTS, Module.STOCK,
-                Module.SUPPLIERS), accessService.getAllowedModules(Role.ACCOUNTANT));
+    public void counterHasAccountantPermissionsButNotCheckout() {
+        assertEquals(EnumSet.of(Module.EMPLOYEES, Module.PRODUCTS, Module.STOCK,
+                Module.SUPPLIERS, Module.SALES_HISTORY), accessService.getAllowedModules(Role.COUNTER));
+        org.junit.Assert.assertFalse(accessService.canAccess(Role.COUNTER, Module.SALES));
     }
 
     @Test
-    public void storekeeperCanOpenProductsStockSuppliersAndAisles() {
+    public void administratorCanViewSalesButCannotOpenCheckout() {
+        assertEquals(EnumSet.of(Module.DASHBOARD, Module.EMPLOYEES, Module.USERS,
+                Module.PRODUCTS, Module.STOCK, Module.AISLES, Module.SUPPLIERS, Module.SALES_HISTORY),
+                accessService.getAllowedModules(Role.ADMIN));
+        org.junit.Assert.assertFalse(accessService.canAccess(Role.ADMIN, Module.SALES));
+    }
+
+    @Test
+    public void salesHistoryIsNotAvailableToCashiers() {
+        org.junit.Assert.assertFalse(accessService.canAccess(Role.CASHIER, Module.SALES_HISTORY));
+        org.junit.Assert.assertTrue(accessService.canAccess(Role.CASHIER, Module.SALES));
+    }
+
+    @Test
+    public void managerCanCreateOrdersButCannotReviewOrViewSales() {
         assertEquals(EnumSet.of(Module.PRODUCTS, Module.STOCK, Module.SUPPLIERS, Module.AISLES),
-                accessService.getAllowedModules(Role.STOREKEEPER));
+                accessService.getAllowedModules(Role.MANAGER));
+        org.junit.Assert.assertFalse(accessService.canAccess(Role.MANAGER, Module.SALES_HISTORY));
     }
 
     @Test
-    public void managerUsesStorekeeperAccessInThisApplication() {
-        assertEquals(accessService.getAllowedModules(Role.STOREKEEPER),
-                accessService.getAllowedModules(Role.MANAGER));
+    public void managerCanManageInventoryAndSupplierOrders() {
+        org.junit.Assert.assertTrue(accessService.canAccess(Role.MANAGER, Module.PRODUCTS));
+        org.junit.Assert.assertTrue(accessService.canAccess(Role.MANAGER, Module.STOCK));
+        org.junit.Assert.assertTrue(accessService.canAccess(Role.MANAGER, Module.SUPPLIERS));
+        org.junit.Assert.assertTrue(accessService.canAccess(Role.MANAGER, Module.AISLES));
     }
 }

@@ -1,6 +1,8 @@
 package com.cash_shop.customer;
 
 import java.awt.BorderLayout;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.sql.SQLException;
 
 import javax.swing.JButton;
@@ -9,6 +11,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.Timer;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 
@@ -24,6 +27,7 @@ public class CustomerView extends JFrame {
     private final DefaultTableModel tableModel = StyleManager.createReadOnlyModel(
             "ID", "Name", "Phone", "Total Spent", "Loyalty Points");
     private final JTable table = StyleManager.createTable(tableModel);
+    private final Timer refreshTimer = new Timer(5000, event -> refreshTable(false));
 
     public CustomerView() {
         setTitle("Customer Management");
@@ -32,6 +36,13 @@ public class CustomerView extends JFrame {
         setLocationRelativeTo(null);
         buildUI();
         refreshTable();
+        refreshTimer.start();
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosed(WindowEvent event) {
+                refreshTimer.stop();
+            }
+        });
     }
 
     private void buildUI() {
@@ -127,6 +138,13 @@ public class CustomerView extends JFrame {
     }
 
     private void refreshTable() {
+        refreshTable(true);
+    }
+
+    private void refreshTable(boolean showError) {
+        int selectedRow = table.getSelectedRow();
+        Integer selectedCustomerId = selectedRow < 0 ? null
+            : (Integer) tableModel.getValueAt(table.convertRowIndexToModel(selectedRow), 0);
         tableModel.setRowCount(0);
         try {
             for (Customer customer : customerDAO.getAllCustomers()) {
@@ -138,8 +156,18 @@ public class CustomerView extends JFrame {
                         customer.getLoyaltyPoints()
                 });
             }
+            if (selectedCustomerId != null) {
+                for (int row = 0; row < tableModel.getRowCount(); row++) {
+                    if (selectedCustomerId.equals(tableModel.getValueAt(row, 0))) {
+                        table.setRowSelectionInterval(row, row);
+                        break;
+                    }
+                }
+            }
         } catch (IllegalStateException exception) {
-            showError(exception.getMessage());
+            if (showError) {
+                showError(exception.getMessage());
+            }
         }
     }
 

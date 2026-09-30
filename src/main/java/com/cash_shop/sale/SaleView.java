@@ -6,10 +6,15 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
+import java.awt.Toolkit;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
@@ -25,6 +30,7 @@ import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTable;
+import javax.swing.Timer;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.event.DocumentEvent;
@@ -40,10 +46,17 @@ import com.cash_shop.employee.EmployeeDAO;
 import com.cash_shop.payment.Payment;
 import com.cash_shop.product.Product;
 import com.cash_shop.product.ProductDAO;
+import com.cash_shop.user.AccountManagementView;
 
 public class SaleView extends JFrame {
+    private static final Logger LOGGER = Logger.getLogger(SaleView.class.getName());
     private final List<Product> catalog = new ArrayList<>();
     private final Employee cashier;
+    private final String accountUsername;
+    private final RegisterSessionDAO registerSessionDAO = new RegisterSessionDAO();
+    private String registerSessionId;
+    private Timer registerHeartbeat;
+    private final Timer dataRefreshTimer = new Timer(5000, event -> refreshSharedCatalog());
     private final List<CartItem> basket = new ArrayList<>();
     private final JComboBox<Customer> customerCombo = new JComboBox<>();
     private final JComboBox<Product> productCombo = new JComboBox<>();
@@ -61,16 +74,76 @@ public class SaleView extends JFrame {
     }
 
     public SaleView(String cashierEmail) {
+        this(cashierEmail, null);
+    }
+
+    public SaleView(String cashierEmail, String accountUsername) {
         cashier = findCashier(cashierEmail);
+        this.accountUsername = accountUsername;
         loadCatalog();
         loadCustomers();
         setTitle("Register - Sales Module");
-        setSize(950, 560);
-        setMinimumSize(new java.awt.Dimension(800, 500));
+        setSize(new java.awt.Dimension(Toolkit.getDefaultToolkit().getScreenSize()));
+        setMinimumSize(new java.awt.Dimension(Toolkit.getDefaultToolkit().getScreenSize()));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         buildUI();
         refreshProducts();
+        startRegisterSession();
+        dataRefreshTimer.start();
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosed(WindowEvent event) {
+                dataRefreshTimer.stop();
+            }
+        });
+    }
+
+    private void refreshSharedCatalog() {
+        if (basket.isEmpty()) {
+            try {
+                catalog.clear();
+                catalog.addAll(new ProductDAO().getAllProducts());
+                refreshProducts();
+            } catch (IllegalStateException exception) {
+                LOGGER.log(Level.FINE, "Unable to refresh the product catalog.", exception);
+            }
+        }
+        Customer selected = (Customer) customerCombo.getSelectedItem();
+        Integer selectedId = selected == null ? null : selected.getCustomerId();
+        try {
+            customerCombo.removeAllItems();
+            customerCombo.addItem(null);
+            for (Customer customer : new CustomerDAO().getAllCustomers()) {
+                customerCombo.addItem(customer);
+                if (selectedId != null && selectedId == customer.getCustomerId()) {
+                    customerCombo.setSelectedItem(customer);
+                }
+            }
+        } catch (IllegalStateException exception) {
+            LOGGER.log(Level.FINE, "Unable to refresh the customer list.", exception);
+        }
+    }
+
+    private void startRegisterSession() {
+        if (cashier == null || cashier.getRole() != Employee.Role.CASHIER) {
+            return;
+        }
+        try {
+            registerSessionId = registerSessionDAO.openSession(cashier.getMatricule());
+            registerHeartbeat = new Timer(10_000, event -> registerSessionDAO.heartbeat(registerSessionId));
+            registerHeartbeat.start();
+            addWindowListener(new WindowAdapter() {
+                @Override
+                public void windowClosed(WindowEvent event) {
+                    registerHeartbeat.stop();
+                    registerSessionDAO.closeSession(registerSessionId);
+                }
+            });
+        } catch (IllegalStateException exception) {
+            JOptionPane.showMessageDialog(this, exception.getMessage(), "Cash register status",
+                    JOptionPane.WARNING_MESSAGE);
+        }
     }
 
     private Employee findCashier(String email) {
@@ -131,7 +204,15 @@ public class SaleView extends JFrame {
         page.add(StyleManager.createTitle("Register"), BorderLayout.NORTH);
         page.add(buildEntryPanel(), BorderLayout.WEST);
         page.add(buildBasketPanel(), BorderLayout.CENTER);
-        page.add(StyleManager.createButtonBar(validateButton, cancelButton, closeButton), BorderLayout.SOUTH);
+        JPanel footer = new JPanel(new BorderLayout());
+        if (accountUsername != null && !accountUsername.isBlank()) {
+            JButton accountButton = new JButton("Manage my account");
+            accountButton.addActionListener(event ->
+                new AccountManagementView(this, accountUsername).setVisible(true));
+            footer.add(accountButton, BorderLayout.WEST);
+        }
+        footer.add(StyleManager.createButtonBar(validateButton, cancelButton, closeButton), BorderLayout.EAST);
+        page.add(footer, BorderLayout.SOUTH);
         setContentPane(page);
     }
 

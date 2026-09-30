@@ -5,7 +5,7 @@ import java.util.Locale;
 import java.security.SecureRandom;
 
 public final class AccountCredentialGenerator {
-    private static final String PASSWORD_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+    private static final String PASSWORD_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*?:";
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private AccountCredentialGenerator() {
@@ -17,7 +17,7 @@ public final class AccountCredentialGenerator {
         if (first.isEmpty() || last.isEmpty()) {
             throw new IllegalArgumentException("First name and last name are required to generate a login.");
         }
-        return prefix(first, 4) + prefix(last, 4);
+        return first.charAt(0) + last;
     }
 
     public static String createPassword() {
@@ -35,7 +35,4 @@ public final class AccountCredentialGenerator {
                 .toLowerCase(Locale.ROOT);
     }
 
-    private static String prefix(String value, int length) {
-        return value.substring(0, Math.min(value.length(), length));
-    }
 }

@@ -2,6 +2,9 @@ package com.cash_shop.supplier;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.Toolkit;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -20,6 +23,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JSplitPane;
 import javax.swing.JTable;
+import javax.swing.Timer;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingConstants;
@@ -54,6 +58,7 @@ public class SupplierView extends JFrame {
     private final JButton approveOrderButton = new JButton("Approve order");
     private final JButton refuseOrderButton = new JButton("Refuse order");
     private final JButton deliveredOrderButton = new JButton("Mark delivered");
+    private final Timer refreshTimer = new Timer(5000, event -> refreshSuppliers(false));
 
     public SupplierView() {
         this(Role.ADMIN);
@@ -63,7 +68,7 @@ public class SupplierView extends JFrame {
         this.role = role;
         setTitle("Supplier Management");
         setSize(1120, 680);
-        setMinimumSize(new java.awt.Dimension(900, 560));
+        setMinimumSize(new java.awt.Dimension(Toolkit.getDefaultToolkit().getScreenSize()));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         buildUI();
@@ -71,9 +76,16 @@ public class SupplierView extends JFrame {
         try {
             supplierDAO.initializeSchema();
             refreshSuppliers();
+            refreshTimer.start();
         } catch (IllegalStateException exception) {
             showError(exception.getMessage());
         }
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosed(WindowEvent event) {
+                refreshTimer.stop();
+            }
+        });
     }
 
     private void buildUI() {
@@ -82,7 +94,11 @@ public class SupplierView extends JFrame {
         supplierPanel.add(new JScrollPane(supplierTable), BorderLayout.CENTER);
         addSupplierButton.addActionListener(event -> addSupplier());
         deleteSupplierButton.addActionListener(event -> deleteSupplier());
-        supplierPanel.add(StyleManager.createButtonBar(addSupplierButton, deleteSupplierButton), BorderLayout.SOUTH);
+        addSupplierButton.setVisible(canManageSuppliers());
+        deleteSupplierButton.setVisible(canManageSuppliers());
+        if (canManageSuppliers()) {
+            supplierPanel.add(StyleManager.createButtonBar(addSupplierButton, deleteSupplierButton), BorderLayout.SOUTH);
+        }
 
         JPanel ordersPanel = new JPanel(new BorderLayout(0, 8));
         ordersPanel.setBorder(BorderFactory.createTitledBorder("Orders"));
@@ -110,8 +126,19 @@ public class SupplierView extends JFrame {
         refuseOrderButton.addActionListener(event -> reviewOrder(SupplierOrder.OrderStatus.DENIDED));
         deliveredOrderButton.addActionListener(event -> markOrderDelivered());
 
-        JPanel orderActions = StyleManager.createButtonBar(newOrderButton, addProductButton,
-            removeProductButton, approveOrderButton, refuseOrderButton, deliveredOrderButton, refreshButton);
+        List<JButton> availableActions = new ArrayList<>();
+        if (canManageOrders()) {
+            availableActions.add(newOrderButton);
+            availableActions.add(addProductButton);
+            availableActions.add(removeProductButton);
+            availableActions.add(deliveredOrderButton);
+        }
+        if (canReviewOrders()) {
+            availableActions.add(approveOrderButton);
+            availableActions.add(refuseOrderButton);
+        }
+        availableActions.add(refreshButton);
+        JPanel orderActions = StyleManager.createButtonBar(availableActions.toArray(JButton[]::new));
         JPanel page = StyleManager.createPage();
         page.add(StyleManager.createTitle("Suppliers and Orders"), BorderLayout.NORTH);
         page.add(mainSplit, BorderLayout.CENTER);
@@ -132,7 +159,12 @@ public class SupplierView extends JFrame {
     }
 
     private void refreshSuppliers() {
+        refreshSuppliers(true);
+    }
+
+    private void refreshSuppliers(boolean showError) {
         try {
+            Supplier previousSelection = getSelectedSupplier();
             suppliers.clear();
             suppliers.addAll(supplierDAO.getSuppliers());
             supplierModel.setRowCount(0);
@@ -145,16 +177,28 @@ public class SupplierView extends JFrame {
             orderModel.setRowCount(0);
             lineModel.setRowCount(0);
             if (!suppliers.isEmpty()) {
-                supplierTable.setRowSelectionInterval(0, 0);
+                int selectedIndex = 0;
+                if (previousSelection != null) {
+                    for (int index = 0; index < suppliers.size(); index++) {
+                        if (suppliers.get(index).getCode() == previousSelection.getCode()) {
+                            selectedIndex = index;
+                            break;
+                        }
+                    }
+                }
+                supplierTable.setRowSelectionInterval(selectedIndex, selectedIndex);
             } else {
                 updateActionState();
             }
         } catch (IllegalStateException exception) {
-            showError(exception.getMessage());
+            if (showError) {
+                showError(exception.getMessage());
+            }
         }
     }
 
     private void refreshOrders() {
+        SupplierOrder previousOrder = getSelectedOrder();
         int supplierIndex = supplierTable.getSelectedRow();
         orders.clear();
         orderLines.clear();
@@ -173,7 +217,16 @@ public class SupplierView extends JFrame {
                         order.getSupplierName(), formatStatus(order.getStatus()), formatMoney(order.getTotalAmount()) });
             }
             if (!orders.isEmpty()) {
-                orderTable.setRowSelectionInterval(0, 0);
+                int selectedIndex = 0;
+                if (previousOrder != null) {
+                    for (int index = 0; index < orders.size(); index++) {
+                        if (orders.get(index).getOrderNumber() == previousOrder.getOrderNumber()) {
+                            selectedIndex = index;
+                            break;
+                        }
+                    }
+                }
+                orderTable.setRowSelectionInterval(selectedIndex, selectedIndex);
             } else {
                 updateActionState();
             }
@@ -442,23 +495,23 @@ public class SupplierView extends JFrame {
     }
 
     private boolean canManageSuppliers() {
-        return role == Role.ADMIN;
+        return false;
     }
 
     private boolean canCreateOrders() {
-        return isStorekeeper();
+        return canManageOrders();
     }
 
     private boolean canReviewOrders() {
-        return role == Role.ACCOUNTANT;
+        return role == Role.COUNTER;
     }
 
     private boolean canMarkDelivered() {
-        return isStorekeeper();
+        return canManageOrders();
     }
 
-    private boolean isStorekeeper() {
-        return role == Role.STOREKEEPER || role == Role.MANAGER;
+    private boolean canManageOrders() {
+        return role == Role.MANAGER;
     }
 
     private String formatStatus(SupplierOrder.OrderStatus status) {

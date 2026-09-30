@@ -39,6 +39,19 @@ class UserDAO {
         }
     }
 
+    boolean changePassword(String username, String currentPassword, String newPassword) {
+        String sql = "UPDATE users SET password_user = ? WHERE login = ? AND password_user = ?";
+        try (Connection connection = DBConnection.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, newPassword);
+            statement.setString(2, username);
+            statement.setString(3, currentPassword);
+            return statement.executeUpdate() == 1;
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to change the account password.", exception);
+        }
+    }
+
     User findByUsername(String username) {
         String sql = "SELECT login, password_user, email FROM users_role WHERE login = ?";
         try (Connection c = DBConnection.getConnection();

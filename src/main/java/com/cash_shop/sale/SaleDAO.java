@@ -8,6 +8,7 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -86,6 +87,56 @@ public class SaleDAO {
            // e.printStackTrace();
         }
         return sales;
+    }
+
+    public List<SaleSummary> getSaleSummaries() {
+        return getSaleSummaries(null, null, null);
+    }
+
+    public List<SaleSummary> getSaleSummaries(LocalDate saleDate, Integer customerId, String cashierMatricule) {
+        String sql = "SELECT s.sale_id, COALESCE(c.name, 'Walk-in customer') AS customer_name, "
+                + "COALESCE(CONCAT(e.first_name, ' ', e.last_name), 'Unknown cashier') AS cashier_name, "
+                + "COALESCE(SUM(p.amount), 0) AS total_amount "
+                + "FROM sales s "
+                + "LEFT JOIN bills b ON b.sale = s.sale_id "
+                + "LEFT JOIN customers c ON c.customer_id = b.customer "
+                + "LEFT JOIN employees e ON e.matricule = COALESCE(b.cashier, s.cashier) "
+                + "LEFT JOIN payments p ON p.sale = s.sale_id "
+                + "WHERE 1 = 1";
+        if (saleDate != null) {
+            sql += " AND s.sale_date >= ? AND s.sale_date < ?";
+        }
+        if (customerId != null) {
+            sql += " AND b.customer = ?";
+        }
+        if (cashierMatricule != null && !cashierMatricule.isBlank()) {
+            sql += " AND COALESCE(b.cashier, s.cashier) = ?";
+        }
+        sql += " GROUP BY s.sale_id, c.name, e.first_name, e.last_name ORDER BY s.sale_id DESC";
+        List<SaleSummary> summaries = new ArrayList<>();
+        try (Connection connection = DBConnection.getConnection();
+            PreparedStatement statement = connection.prepareStatement(sql)) {
+            int parameter = 1;
+            if (saleDate != null) {
+                statement.setTimestamp(parameter++, Timestamp.valueOf(saleDate.atStartOfDay()));
+                statement.setTimestamp(parameter++, Timestamp.valueOf(saleDate.plusDays(1).atStartOfDay()));
+            }
+            if (customerId != null) {
+                statement.setInt(parameter++, customerId);
+            }
+            if (cashierMatricule != null && !cashierMatricule.isBlank()) {
+                statement.setString(parameter, cashierMatricule);
+            }
+            try (ResultSet results = statement.executeQuery()) {
+                while (results.next()) {
+                    summaries.add(new SaleSummary(results.getInt("sale_id"), results.getString("customer_name"),
+                            results.getString("cashier_name"), results.getBigDecimal("total_amount")));
+                }
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to load sales history.", exception);
+        }
+        return summaries;
     }
 
     public int persistCompletedSale(Sale sale, Customer customer, Payment.PaymentMode paymentMode) {

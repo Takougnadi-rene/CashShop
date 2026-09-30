@@ -16,6 +16,7 @@ public class AccessService {
         STOCK,
         AISLES,
         SALES,
+        SALES_HISTORY,
         SUPPLIERS
     }
 
@@ -26,15 +27,13 @@ public class AccessService {
         switch (role) {
             case ADMIN:
                 return Collections.unmodifiableSet(EnumSet.of(Module.DASHBOARD, Module.EMPLOYEES, Module.USERS,
-                        Module.CUSTOMERS, Module.PRODUCTS, Module.STOCK, Module.AISLES, Module.SUPPLIERS));
+                        Module.PRODUCTS, Module.STOCK, Module.AISLES, Module.SUPPLIERS, Module.SALES_HISTORY));
             case MANAGER:
-            case STOREKEEPER:
                 return Collections.unmodifiableSet(EnumSet.of(
                         Module.PRODUCTS, Module.STOCK, Module.SUPPLIERS, Module.AISLES));
-            case ACCOUNTANT:
-                return Collections.unmodifiableSet(EnumSet.of(Module.DASHBOARD, Module.EMPLOYEES,
-                        Module.PRODUCTS, Module.STOCK, Module.SUPPLIERS));
             case COUNTER:
+                return Collections.unmodifiableSet(EnumSet.of(Module.EMPLOYEES,
+                        Module.PRODUCTS, Module.STOCK, Module.SUPPLIERS, Module.SALES_HISTORY));
             case CASHIER:
                 return Collections.unmodifiableSet(EnumSet.of(Module.SALES));
             case AISLE_MANAGER:

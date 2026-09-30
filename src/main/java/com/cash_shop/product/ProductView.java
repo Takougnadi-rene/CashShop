@@ -2,6 +2,7 @@ package com.cash_shop.product;
 
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.Toolkit;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.ArrayList;
@@ -52,7 +53,7 @@ public class ProductView extends JFrame {
     public ProductView(boolean readOnly) {
         this.readOnly = readOnly;
         setTitle("Product Management");
-        setSize(1000, 600);
+        setSize(new java.awt.Dimension(Toolkit.getDefaultToolkit().getScreenSize()));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         buildUI();
@@ -113,17 +114,19 @@ public class ProductView extends JFrame {
         JButton btnAdd = new JButton("Add");
         JButton btnDelete = new JButton("Delete");
         JButton btnClear = new JButton("Clear");
+        JButton btnClose = new JButton("Close");
         btnAdd.setEnabled(!readOnly);
         btnDelete.setEnabled(!readOnly);
         btnAdd.addActionListener(e -> addProduct());
         btnDelete.addActionListener(e -> deleteSelectedProduct());
         btnClear.addActionListener(e -> clearForm());
+        btnClose.addActionListener(e -> dispose());
 
         JPanel page = StyleManager.createPage();
         page.add(StyleManager.createTitle("Products"), BorderLayout.NORTH);
         page.add(left, BorderLayout.WEST);
         page.add(center, BorderLayout.CENTER);
-        page.add(StyleManager.createButtonBar(btnAdd, btnDelete, btnClear), BorderLayout.SOUTH);
+        page.add(StyleManager.createButtonBar(btnAdd, btnDelete, btnClear, btnClose), BorderLayout.SOUTH);
         setContentPane(page);
     }
 

@@ -112,8 +112,47 @@ public class EmployeeDAO {
     }
 
     public void deleteEmployee(String matricule) {
-        String sql = "DELETE FROM employees WHERE matricule = ?";
-        execute(sql, statement -> statement.setString(1, matricule));
+        try (Connection connection = DBConnection.getConnection()) {
+            boolean originalAutoCommit = connection.getAutoCommit();
+            connection.setAutoCommit(false);
+            try {
+                String email = null;
+                try (PreparedStatement statement = connection.prepareStatement(
+                        "SELECT email FROM employees WHERE matricule = ? FOR UPDATE")) {
+                    statement.setString(1, matricule);
+                    try (ResultSet results = statement.executeQuery()) {
+                        if (results.next()) {
+                            email = results.getString("email");
+                        }
+                    }
+                }
+                if (email != null) {
+                    try (PreparedStatement statement = connection.prepareStatement(
+                            "DELETE FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(?))")) {
+                        statement.setString(1, email);
+                        statement.executeUpdate();
+                    }
+                    try (PreparedStatement statement = connection.prepareStatement(
+                            "DELETE FROM employees WHERE matricule = ?")) {
+                        statement.setString(1, matricule);
+                        statement.executeUpdate();
+                    }
+                }
+                connection.commit();
+            } catch (SQLException | RuntimeException exception) {
+                try {
+                    connection.rollback();
+                } catch (SQLException rollbackException) {
+                    exception.addSuppressed(rollbackException);
+                }
+                throw exception;
+            } finally {
+                connection.setAutoCommit(originalAutoCommit);
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to delete employee and login: " + exception.getMessage(),
+                    exception);
+        }
     }
 
     public void openCashRegister(Employee employee) {
