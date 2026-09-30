@@ -2,20 +2,22 @@ package com.cash_shop.product;
 
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
+import java.awt.Toolkit;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.Timer;
 import javax.swing.table.DefaultTableModel;
 
 import com.cash_shop.common.StyleManager;
@@ -23,148 +25,166 @@ import com.cash_shop.common.StyleManager;
 public class ProductView extends JFrame {
 
     private final List<Product> products = new ArrayList<>();
-    private final JTextField tfReference = new JTextField();
-    private final JTextField tfDesignation = new JTextField();
-    private final JTextField tfPurchase = new JTextField();
-    private final JTextField tfSelling = new JTextField();
-    private final JTextField tfStock = new JTextField();
-    private final JTextField tfSearch = new JTextField();
-    private JTable table;
-    private DefaultTableModel tableModel;
+    private final JTextField tfReference = StyleManager.createField();
+    private final JTextField tfDesignation = StyleManager.createField();
+    private final JTextField tfPurchase = StyleManager.createField();
+    private final JTextField tfSelling = StyleManager.createField();
+    private final JComboBox<String> cbProductType = new JComboBox<>(
+            new String[] { "Standard", "Fresh", "Electronic", "Artisanal" });
+    private final JTextField tfExpirationDate = StyleManager.createField();
+    private final JTextField tfStorageTemperature = StyleManager.createField();
+    private final JTextField tfBrand = StyleManager.createField();
+    private final JTextField tfWarranty = StyleManager.createField();
+    private final JComboBox<ArtisanalProduct.TypeArtisanal> cbArtisanalType =
+            new JComboBox<>(ArtisanalProduct.TypeArtisanal.values());
+    private final JTextField tfSearch = new JTextField(20);
+    private final ProductDAO productDAO = new ProductDAO();
+    private final DefaultTableModel tableModel = StyleManager.createReadOnlyModel(
+            "Reference", "Designation", "Purchase Price (USD)", "Selling Price (USD)",
+            "Expiration Date", "Warranty (Months)", "Artisanal Type");
+    private final JTable table = StyleManager.createTable(tableModel);
+    private final boolean readOnly;
+    private final Timer refreshTimer = new Timer(5000, event -> refreshTable(false));
 
     public ProductView() {
-        initDemoProducts();
-        setTitle("Gestion des Produits");
-        setSize(980, 560);
-        setLocationRelativeTo(null);
-        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        setResizable(false);
-        buildUI();
-        refreshTable();
+        this(false);
     }
 
-    private void initDemoProducts() {
-        products.add(new Product(1001, "Pain complet", 230.0, 350.0, 25));
-        products.add(new Product(1002, "Tomates", 180.0, 260.0, 40));
-        products.add(new Product(1003, "Laptop X15", 780000.0, 980000.0, 12));
-        products.add(new Product(1004, "Souris sans fil", 22000.0, 35000.0, 18));
+    public ProductView(boolean readOnly) {
+        this.readOnly = readOnly;
+        setTitle("Product Management");
+        setSize(new java.awt.Dimension(Toolkit.getDefaultToolkit().getScreenSize()));
+        setLocationRelativeTo(null);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        buildUI();
+        if (readOnly) {
+            tfReference.setEditable(false);
+            tfDesignation.setEditable(false);
+            tfPurchase.setEditable(false);
+            tfSelling.setEditable(false);
+            tfExpirationDate.setEditable(false);
+            tfStorageTemperature.setEditable(false);
+            tfBrand.setEditable(false);
+            tfWarranty.setEditable(false);
+            cbProductType.setEnabled(false);
+            cbArtisanalType.setEnabled(false);
+        }
+        refreshTable();
+        refreshTimer.start();
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosed(WindowEvent event) {
+                refreshTimer.stop();
+            }
+        });
     }
 
     private void buildUI() {
-        JPanel main = new JPanel(new BorderLayout(12, 12));
-        main.setBackground(StyleManager.BG_DARK);
-        main.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        // Formulaire à gauche
+        JPanel form = StyleManager.createForm("Product details");
+        StyleManager.addRow(form, 0, "Reference:", tfReference);
+        StyleManager.addRow(form, 1, "Name:", tfDesignation);
+        StyleManager.addRow(form, 2, "Purchase Price (USD):", tfPurchase);
+        StyleManager.addRow(form, 3, "Selling Price (USD):", tfSelling);
+        StyleManager.addRow(form, 4, "Product Type:", cbProductType);
+        StyleManager.addRow(form, 5, "Expiration Date:", tfExpirationDate);
+        StyleManager.addRow(form, 6, "Storage Temperature:", tfStorageTemperature);
+        StyleManager.addRow(form, 7, "Brand:", tfBrand);
+        StyleManager.addRow(form, 8, "Warranty (Months):", tfWarranty);
+        StyleManager.addRow(form, 9, "Artisanal Type:", cbArtisanalType);
+        cbProductType.addActionListener(e -> updateTypeFields());
+        updateTypeFields();
+        JPanel left = new JPanel(new BorderLayout());
+        left.add(form, BorderLayout.NORTH);
 
-        JPanel header = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        header.setBackground(StyleManager.BG_DARK);
-        header.add(StyleManager.createLabel("=== GESTION DES PRODUITS ===", StyleManager.ACCENT_GOLD, StyleManager.FONT_TITLE));
+        // Recherche au-dessus du tableau
+        JButton btnSearch = new JButton("Search");
+        btnSearch.addActionListener(e -> searchProducts());
+        tfSearch.addActionListener(e -> searchProducts());
+        JPanel searchBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        searchBar.add(new JLabel("Search:"));
+        searchBar.add(tfSearch);
+        searchBar.add(btnSearch);
 
-        JPanel formPanel = StyleManager.createCard();
-        formPanel.setLayout(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(8, 8, 8, 8);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
+        JPanel center = new JPanel(new BorderLayout(0, 8));
+        center.add(searchBar, BorderLayout.NORTH);
+        center.add(new JScrollPane(table), BorderLayout.CENTER);
 
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        formPanel.add(StyleManager.createLabel("Référence :", StyleManager.TEXT_MUTED, StyleManager.FONT_SMALL), gbc);
-        gbc.gridx = 1;
-        formPanel.add(tfReference, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        formPanel.add(StyleManager.createLabel("Désignation :", StyleManager.TEXT_MUTED, StyleManager.FONT_SMALL), gbc);
-        gbc.gridx = 1;
-        formPanel.add(tfDesignation, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 2;
-        formPanel.add(StyleManager.createLabel("Prix achat :", StyleManager.TEXT_MUTED, StyleManager.FONT_SMALL), gbc);
-        gbc.gridx = 1;
-        formPanel.add(tfPurchase, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 3;
-        formPanel.add(StyleManager.createLabel("Prix vente :", StyleManager.TEXT_MUTED, StyleManager.FONT_SMALL), gbc);
-        gbc.gridx = 1;
-        formPanel.add(tfSelling, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 4;
-        formPanel.add(StyleManager.createLabel("Stock :", StyleManager.TEXT_MUTED, StyleManager.FONT_SMALL), gbc);
-        gbc.gridx = 1;
-        formPanel.add(tfStock, gbc);
-
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
-        buttonPanel.setOpaque(false);
-        JButton btnAdd = StyleManager.createButton("Ajouter", StyleManager.ACCENT_GREEN);
-        JButton btnDelete = StyleManager.createButton("Supprimer", StyleManager.ACCENT_RED);
-        JButton btnSearch = StyleManager.createButton("Rechercher", StyleManager.ACCENT_BLUE);
-        JButton btnClear = StyleManager.createButton("Effacer", new java.awt.Color(100, 100, 120));
-
+        // Boutons
+        JButton btnAdd = new JButton("Add");
+        JButton btnDelete = new JButton("Delete");
+        JButton btnClear = new JButton("Clear");
+        JButton btnClose = new JButton("Close");
+        btnAdd.setEnabled(!readOnly);
+        btnDelete.setEnabled(!readOnly);
         btnAdd.addActionListener(e -> addProduct());
         btnDelete.addActionListener(e -> deleteSelectedProduct());
-        btnSearch.addActionListener(e -> searchProducts());
         btnClear.addActionListener(e -> clearForm());
+        btnClose.addActionListener(e -> dispose());
 
-        buttonPanel.add(btnAdd);
-        buttonPanel.add(btnDelete);
-        buttonPanel.add(btnSearch);
-        buttonPanel.add(btnClear);
+        JPanel page = StyleManager.createPage();
+        page.add(StyleManager.createTitle("Products"), BorderLayout.NORTH);
+        page.add(left, BorderLayout.WEST);
+        page.add(center, BorderLayout.CENTER);
+        page.add(StyleManager.createButtonBar(btnAdd, btnDelete, btnClear, btnClose), BorderLayout.SOUTH);
+        setContentPane(page);
+    }
 
-        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        searchPanel.setOpaque(false);
-        searchPanel.add(StyleManager.createLabel("Recherche :", StyleManager.TEXT_MUTED, StyleManager.FONT_SMALL));
-        searchPanel.add(tfSearch);
-        tfSearch.setPreferredSize(new java.awt.Dimension(220, 30));
-
-        JPanel topPanel = new JPanel(new BorderLayout());
-        topPanel.setOpaque(false);
-        topPanel.add(formPanel, BorderLayout.CENTER);
-        topPanel.add(searchPanel, BorderLayout.SOUTH);
-
-        String[] columns = {"Référence", "Désignation", "Achat", "Vente", "Stock"};
-        tableModel = new DefaultTableModel(columns, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        };
-        table = new JTable(tableModel);
-        table.setRowHeight(28);
-
-        JPanel tablePanel = StyleManager.createCard();
-        tablePanel.setLayout(new BorderLayout());
-        tablePanel.add(new JScrollPane(table), BorderLayout.CENTER);
-
-        main.add(header, BorderLayout.NORTH);
-        main.add(topPanel, BorderLayout.CENTER);
-        main.add(buttonPanel, BorderLayout.SOUTH);
-
-        add(main, BorderLayout.NORTH);
-        add(tablePanel, BorderLayout.CENTER);
+    /** N'active que les champs utiles pour le type de produit choisi. */
+    private void updateTypeFields() {
+        if (readOnly) {
+            return;
+        }
+        String type = (String) cbProductType.getSelectedItem();
+        boolean fresh = "Fresh".equals(type);
+        boolean electronic = "Electronic".equals(type);
+        boolean artisanal = "Artisanal".equals(type);
+        tfExpirationDate.setEnabled(fresh);
+        tfStorageTemperature.setEnabled(fresh);
+        tfBrand.setEnabled(electronic);
+        tfWarranty.setEnabled(electronic);
+        cbArtisanalType.setEnabled(artisanal);
     }
 
     private void addProduct() {
         try {
             Product product = readProductFromFields();
-            products.add(product);
+            productDAO.insertProduct(product);
+            if (product instanceof FreshProduct freshProduct) productDAO.insertFreshProduct(freshProduct);
+            if (product instanceof ElectronicProduct electronicProduct) {
+                productDAO.insertElectronicProduct(electronicProduct);
+            }
+            if (product instanceof ArtisanalProduct artisanalProduct) {
+                productDAO.insertArtisanalProduct(artisanalProduct);
+            }
             refreshTable();
             clearForm();
-            JOptionPane.showMessageDialog(this, "Produit ajouté avec succès.");
-        } catch (IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(this, ex.getMessage(), "Erreur", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Product added successfully.");
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void deleteSelectedProduct() {
         int selectedRow = table.getSelectedRow();
         if (selectedRow == -1) {
-            JOptionPane.showMessageDialog(this, "Sélectionnez un produit.");
+            JOptionPane.showMessageDialog(this, "Select a product.");
             return;
         }
-        products.remove(selectedRow);
-        refreshTable();
+        Product product = products.get(table.convertRowIndexToModel(selectedRow));
+        try {
+            if (product instanceof ElectronicProduct electronicProduct) {
+                productDAO.deleteElectronicProduct(electronicProduct);
+            }
+            if (product instanceof FreshProduct freshProduct) productDAO.deleteFreshProduct(freshProduct);
+            if (product instanceof ArtisanalProduct artisanalProduct) {
+                productDAO.deleteArtisanalProduct(artisanalProduct);
+            }
+            productDAO.deleteProduct(product);
+            refreshTable();
+        } catch (IllegalStateException exception) {
+            JOptionPane.showMessageDialog(this, exception.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void searchProducts() {
@@ -177,13 +197,7 @@ public class ProductView extends JFrame {
         for (Product product : products) {
             if (String.valueOf(product.getReference()).contains(keyword)
                     || product.getDesignation().toLowerCase().contains(keyword)) {
-                tableModel.addRow(new Object[]{
-                    product.getReference(),
-                    product.getDesignation(),
-                    product.getPurchasePrice(),
-                    product.getSellingPrice(),
-                    product.getStockQuantity()
-                });
+                addProductRow(product);
             }
         }
     }
@@ -193,37 +207,72 @@ public class ProductView extends JFrame {
         String designation = tfDesignation.getText().trim();
         String purchaseStr = tfPurchase.getText().trim();
         String sellingStr = tfSelling.getText().trim();
-        String stockStr = tfStock.getText().trim();
 
-        if (referenceStr.isEmpty() || designation.isEmpty() || purchaseStr.isEmpty() || sellingStr.isEmpty() || stockStr.isEmpty()) {
-            throw new IllegalArgumentException("Tous les champs sont obligatoires.");
+        if (referenceStr.isEmpty() || designation.isEmpty() || purchaseStr.isEmpty() || sellingStr.isEmpty()) {
+            throw new IllegalArgumentException("All fields are required.");
         }
 
         try {
             int reference = Integer.parseInt(referenceStr);
             double purchase = Double.parseDouble(purchaseStr);
             double selling = Double.parseDouble(sellingStr);
-            int stock = Integer.parseInt(stockStr);
-            if (purchase <= 0 || selling <= 0 || stock < 0) {
-                throw new IllegalArgumentException("Prix et stock invalides.");
+            if (purchase <= 0 || selling <= 0) {
+                throw new IllegalArgumentException("Price value is invalid.");
             }
-            return new Product(reference, designation, purchase, selling, stock);
+            String productType = (String) cbProductType.getSelectedItem();
+            if ("Fresh".equals(productType)) {
+                String expirationDate = tfExpirationDate.getText().trim();
+                double temperature = Double.parseDouble(tfStorageTemperature.getText().trim());
+                if (expirationDate.isEmpty()) throw new IllegalArgumentException("Expiration date is required.");
+                return new FreshProduct(reference, designation, purchase, selling, 0, expirationDate, temperature);
+            }
+            if ("Electronic".equals(productType)) {
+                String brand = tfBrand.getText().trim();
+                int warranty = Integer.parseInt(tfWarranty.getText().trim());
+                if (brand.isEmpty() || warranty < 0) throw new IllegalArgumentException("Brand and warranty are required.");
+                return new ElectronicProduct(reference, designation, purchase, selling, 0, brand, warranty);
+            }
+            if ("Artisanal".equals(productType)) {
+                return new ArtisanalProduct(reference, designation, purchase, selling, 0,
+                        (ArtisanalProduct.TypeArtisanal) cbArtisanalType.getSelectedItem());
+            }
+            return new Product(reference, designation, purchase, selling, 0);
         } catch (NumberFormatException ex) {
-            throw new IllegalArgumentException("Vérifiez les valeurs numériques.");
+            throw new IllegalArgumentException("Check the numeric values.");
         }
     }
 
     private void refreshTable() {
-        tableModel.setRowCount(0);
-        for (Product product : products) {
-            tableModel.addRow(new Object[]{
-                product.getReference(),
-                product.getDesignation(),
-                product.getPurchasePrice(),
-                product.getSellingPrice(),
-                product.getStockQuantity()
-            });
+        refreshTable(true);
+    }
+
+    private void refreshTable(boolean showError) {
+        try {
+            products.clear();
+            products.addAll(productDAO.getAllProducts());
+            tableModel.setRowCount(0);
+            for (Product product : products) {
+                addProductRow(product);
+            }
+        } catch (IllegalStateException exception) {
+            if (showError) {
+                JOptionPane.showMessageDialog(this, exception.getMessage(), "Database Error",
+                        JOptionPane.ERROR_MESSAGE);
+            }
         }
+    }
+
+    private void addProductRow(Product product) {
+        if (product == null) return;
+        String expirationDate = product instanceof FreshProduct
+                ? ((FreshProduct) product).getExpirationDate() : "";
+        String warranty = product instanceof ElectronicProduct
+                ? String.valueOf(((ElectronicProduct) product).getWarranty()) : "";
+        String artisanalType = product instanceof ArtisanalProduct
+                ? ((ArtisanalProduct) product).getType() : "";
+        tableModel.addRow(new Object[] { product.getReference(), product.getDesignation(),
+                String.format("%.2f USD", product.getPurchasePrice()),
+                String.format("%.2f USD", product.getSellingPrice()), expirationDate, warranty, artisanalType });
     }
 
     private void clearForm() {
@@ -231,11 +280,16 @@ public class ProductView extends JFrame {
         tfDesignation.setText("");
         tfPurchase.setText("");
         tfSelling.setText("");
-        tfStock.setText("");
+        cbProductType.setSelectedItem("Standard");
+        tfExpirationDate.setText("");
+        tfStorageTemperature.setText("");
+        tfBrand.setText("");
+        tfWarranty.setText("");
         tfSearch.setText("");
     }
 
     public static void main(String[] args) {
+        StyleManager.applyLookAndFeel();
         javax.swing.SwingUtilities.invokeLater(() -> new ProductView().setVisible(true));
     }
 }

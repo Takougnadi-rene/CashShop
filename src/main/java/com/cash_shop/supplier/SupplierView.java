@@ -1,167 +1,548 @@
 package com.cash_shop.supplier;
 
 import java.awt.BorderLayout;
-import java.awt.FlowLayout;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
+import java.awt.Component;
+import java.awt.Toolkit;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.BorderFactory;
+import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSpinner;
+import javax.swing.JSplitPane;
 import javax.swing.JTable;
+import javax.swing.Timer;
 import javax.swing.JTextField;
+import javax.swing.SpinnerNumberModel;
+import javax.swing.SwingConstants;
 import javax.swing.table.DefaultTableModel;
 
 import com.cash_shop.common.StyleManager;
+import com.cash_shop.employee.Employee.Role;
+import com.cash_shop.product.Product;
+import com.cash_shop.product.ProductDAO;
 
 public class SupplierView extends JFrame {
-
+    private final Role role;
+    private final SupplierDAO supplierDAO = new SupplierDAO();
+    private final ProductDAO productDAO = new ProductDAO();
     private final List<Supplier> suppliers = new ArrayList<>();
-    private final JTextField tfCode = new JTextField();
-    private final JTextField tfName = new JTextField();
-    private final JTextField tfPhone = new JTextField();
-    private final JTextField tfAddress = new JTextField();
-    private JTable table;
-    private DefaultTableModel tableModel;
+    private final List<SupplierOrder> orders = new ArrayList<>();
+    private final List<Product> orderLines = new ArrayList<>();
+    private final DefaultTableModel supplierModel = StyleManager.createReadOnlyModel(
+            "Code", "Supplier", "Phone", "Address");
+    private final DefaultTableModel orderModel = StyleManager.createReadOnlyModel(
+            "Order #", "Date", "Supplier", "Status", "Total (USD)");
+    private final DefaultTableModel lineModel = StyleManager.createReadOnlyModel(
+            "Reference", "Product", "Quantity", "Purchase Price (USD)", "Line Total (USD)");
+    private final JTable supplierTable = StyleManager.createTable(supplierModel);
+    private final JTable orderTable = StyleManager.createTable(orderModel);
+    private final JTable lineTable = StyleManager.createTable(lineModel);
+    private final JButton addSupplierButton = new JButton("Add supplier");
+    private final JButton deleteSupplierButton = new JButton("Delete supplier");
+    private final JButton newOrderButton = new JButton("New order");
+    private final JButton addProductButton = new JButton("Add product");
+    private final JButton removeProductButton = new JButton("Remove product");
+    private final JButton approveOrderButton = new JButton("Approve order");
+    private final JButton refuseOrderButton = new JButton("Refuse order");
+    private final JButton deliveredOrderButton = new JButton("Mark delivered");
+    private final Timer refreshTimer = new Timer(5000, event -> refreshSuppliers(false));
 
     public SupplierView() {
-        initDemoSuppliers();
-        setTitle("Gestion des Fournisseurs");
-        setSize(820, 500);
-        setLocationRelativeTo(null);
-        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        setResizable(false);
-        buildUI();
-        refreshTable();
+        this(Role.ADMIN);
     }
 
-    private void initDemoSuppliers() {
-        suppliers.add(new Supplier(1, "Achat Plus", "+221 77 000 00 00", "Dakar"));
-        suppliers.add(new Supplier(2, "Fresh Supply", "+221 77 111 11 11", "Thiès"));
-        suppliers.add(new Supplier(3, "TechMarket", "+221 77 222 22 22", "Saint-Louis"));
+    public SupplierView(Role role) {
+        this.role = role;
+        setTitle("Supplier Management");
+        setSize(1120, 680);
+        setMinimumSize(new java.awt.Dimension(Toolkit.getDefaultToolkit().getScreenSize()));
+        setLocationRelativeTo(null);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        buildUI();
+        updateActionState();
+        try {
+            supplierDAO.initializeSchema();
+            refreshSuppliers();
+            refreshTimer.start();
+        } catch (IllegalStateException exception) {
+            showError(exception.getMessage());
+        }
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosed(WindowEvent event) {
+                refreshTimer.stop();
+            }
+        });
     }
 
     private void buildUI() {
-        JPanel main = new JPanel(new BorderLayout(12, 12));
-        main.setBackground(StyleManager.BG_DARK);
-        main.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        JPanel supplierPanel = new JPanel(new BorderLayout(0, 8));
+        supplierPanel.setBorder(BorderFactory.createTitledBorder("Suppliers"));
+        supplierPanel.add(new JScrollPane(supplierTable), BorderLayout.CENTER);
+        addSupplierButton.addActionListener(event -> addSupplier());
+        deleteSupplierButton.addActionListener(event -> deleteSupplier());
+        addSupplierButton.setVisible(canManageSuppliers());
+        deleteSupplierButton.setVisible(canManageSuppliers());
+        if (canManageSuppliers()) {
+            supplierPanel.add(StyleManager.createButtonBar(addSupplierButton, deleteSupplierButton), BorderLayout.SOUTH);
+        }
 
-        JPanel header = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        header.setBackground(StyleManager.BG_DARK);
-        header.add(StyleManager.createLabel("=== FOURNISSEURS ===", StyleManager.ACCENT_GOLD, StyleManager.FONT_TITLE));
+        JPanel ordersPanel = new JPanel(new BorderLayout(0, 8));
+        ordersPanel.setBorder(BorderFactory.createTitledBorder("Orders"));
+        JPanel orderListPanel = new JPanel(new BorderLayout());
+        orderListPanel.setBorder(BorderFactory.createTitledBorder("Supplier orders"));
+        orderListPanel.add(new JScrollPane(orderTable), BorderLayout.CENTER);
+        JPanel orderLinesPanel = new JPanel(new BorderLayout());
+        orderLinesPanel.setBorder(BorderFactory.createTitledBorder("Products in selected order"));
+        orderLinesPanel.add(new JScrollPane(lineTable), BorderLayout.CENTER);
+        JSplitPane orderDetails = new JSplitPane(JSplitPane.VERTICAL_SPLIT, orderListPanel, orderLinesPanel);
+        orderDetails.setResizeWeight(0.52);
+        orderDetails.setBorder(null);
+        ordersPanel.add(orderDetails, BorderLayout.CENTER);
 
-        JPanel formPanel = StyleManager.createCard();
-        formPanel.setLayout(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(8, 8, 8, 8);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
+        JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, supplierPanel, ordersPanel);
+        mainSplit.setResizeWeight(0.28);
+        mainSplit.setDividerLocation(300);
 
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        formPanel.add(StyleManager.createLabel("Code :", StyleManager.TEXT_MUTED, StyleManager.FONT_SMALL), gbc);
-        gbc.gridx = 1;
-        formPanel.add(tfCode, gbc);
+        JButton refreshButton = new JButton("Refresh");
+        refreshButton.addActionListener(event -> refreshSuppliers());
+        newOrderButton.addActionListener(event -> createOrder());
+        addProductButton.addActionListener(event -> addProductToOrder());
+        removeProductButton.addActionListener(event -> removeProductFromOrder());
+        approveOrderButton.addActionListener(event -> reviewOrder(SupplierOrder.OrderStatus.APPROUVED));
+        refuseOrderButton.addActionListener(event -> reviewOrder(SupplierOrder.OrderStatus.DENIDED));
+        deliveredOrderButton.addActionListener(event -> markOrderDelivered());
 
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        formPanel.add(StyleManager.createLabel("Nom :", StyleManager.TEXT_MUTED, StyleManager.FONT_SMALL), gbc);
-        gbc.gridx = 1;
-        formPanel.add(tfName, gbc);
+        List<JButton> availableActions = new ArrayList<>();
+        if (canManageOrders()) {
+            availableActions.add(newOrderButton);
+            availableActions.add(addProductButton);
+            availableActions.add(removeProductButton);
+            availableActions.add(deliveredOrderButton);
+        }
+        if (canReviewOrders()) {
+            availableActions.add(approveOrderButton);
+            availableActions.add(refuseOrderButton);
+        }
+        availableActions.add(refreshButton);
+        JPanel orderActions = StyleManager.createButtonBar(availableActions.toArray(JButton[]::new));
+        JPanel page = StyleManager.createPage();
+        page.add(StyleManager.createTitle("Suppliers and Orders"), BorderLayout.NORTH);
+        page.add(mainSplit, BorderLayout.CENTER);
+        page.add(orderActions, BorderLayout.SOUTH);
+        setContentPane(page);
 
-        gbc.gridx = 0;
-        gbc.gridy = 2;
-        formPanel.add(StyleManager.createLabel("Téléphone :", StyleManager.TEXT_MUTED, StyleManager.FONT_SMALL), gbc);
-        gbc.gridx = 1;
-        formPanel.add(tfPhone, gbc);
-
-        gbc.gridx = 0;
-        gbc.gridy = 3;
-        formPanel.add(StyleManager.createLabel("Adresse :", StyleManager.TEXT_MUTED, StyleManager.FONT_SMALL), gbc);
-        gbc.gridx = 1;
-        formPanel.add(tfAddress, gbc);
-
-        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
-        actionPanel.setOpaque(false);
-        JButton addBtn = StyleManager.createButton("Ajouter", StyleManager.ACCENT_GREEN);
-        JButton deleteBtn = StyleManager.createButton("Supprimer", StyleManager.ACCENT_RED);
-        JButton clearBtn = StyleManager.createButton("Effacer", new java.awt.Color(100, 100, 120));
-
-        addBtn.addActionListener(e -> addSupplier());
-        deleteBtn.addActionListener(e -> deleteSupplier());
-        clearBtn.addActionListener(e -> clearForm());
-
-        actionPanel.add(addBtn);
-        actionPanel.add(deleteBtn);
-        actionPanel.add(clearBtn);
-
-        String[] columns = {"Code", "Nom", "Téléphone", "Adresse"};
-        tableModel = new DefaultTableModel(columns, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
+        supplierTable.getSelectionModel().addListSelectionListener(event -> {
+            if (!event.getValueIsAdjusting()) {
+                refreshOrders();
             }
-        };
-        table = new JTable(tableModel);
+        });
+        orderTable.getSelectionModel().addListSelectionListener(event -> {
+            if (!event.getValueIsAdjusting()) {
+                refreshOrderLines();
+            }
+        });
+        lineTable.getSelectionModel().addListSelectionListener(event -> updateActionState());
+    }
 
-        main.add(header, BorderLayout.NORTH);
-        main.add(formPanel, BorderLayout.CENTER);
-        main.add(actionPanel, BorderLayout.SOUTH);
+    private void refreshSuppliers() {
+        refreshSuppliers(true);
+    }
 
-        add(main, BorderLayout.NORTH);
-        add(new JScrollPane(table), BorderLayout.CENTER);
+    private void refreshSuppliers(boolean showError) {
+        try {
+            Supplier previousSelection = getSelectedSupplier();
+            suppliers.clear();
+            suppliers.addAll(supplierDAO.getSuppliers());
+            supplierModel.setRowCount(0);
+            for (Supplier supplier : suppliers) {
+                supplierModel.addRow(new Object[] { supplier.getCode(), supplier.getName(),
+                        supplier.getTelephone(), supplier.getAddress() });
+            }
+            orders.clear();
+            orderLines.clear();
+            orderModel.setRowCount(0);
+            lineModel.setRowCount(0);
+            if (!suppliers.isEmpty()) {
+                int selectedIndex = 0;
+                if (previousSelection != null) {
+                    for (int index = 0; index < suppliers.size(); index++) {
+                        if (suppliers.get(index).getCode() == previousSelection.getCode()) {
+                            selectedIndex = index;
+                            break;
+                        }
+                    }
+                }
+                supplierTable.setRowSelectionInterval(selectedIndex, selectedIndex);
+            } else {
+                updateActionState();
+            }
+        } catch (IllegalStateException exception) {
+            if (showError) {
+                showError(exception.getMessage());
+            }
+        }
+    }
+
+    private void refreshOrders() {
+        SupplierOrder previousOrder = getSelectedOrder();
+        int supplierIndex = supplierTable.getSelectedRow();
+        orders.clear();
+        orderLines.clear();
+        orderModel.setRowCount(0);
+        lineModel.setRowCount(0);
+        if (supplierIndex < 0) {
+            updateActionState();
+            return;
+        }
+        Supplier selectedSupplier = suppliers.get(supplierTable.convertRowIndexToModel(supplierIndex));
+        try {
+            orders.addAll(supplierDAO.getOrders(selectedSupplier.getCode()));
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+            for (SupplierOrder order : orders) {
+                orderModel.addRow(new Object[] { order.getOrderNumber(), dateFormat.format(order.getOrderDate()),
+                        order.getSupplierName(), formatStatus(order.getStatus()), formatMoney(order.getTotalAmount()) });
+            }
+            if (!orders.isEmpty()) {
+                int selectedIndex = 0;
+                if (previousOrder != null) {
+                    for (int index = 0; index < orders.size(); index++) {
+                        if (orders.get(index).getOrderNumber() == previousOrder.getOrderNumber()) {
+                            selectedIndex = index;
+                            break;
+                        }
+                    }
+                }
+                orderTable.setRowSelectionInterval(selectedIndex, selectedIndex);
+            } else {
+                updateActionState();
+            }
+        } catch (IllegalStateException exception) {
+            showError(exception.getMessage());
+        }
+    }
+
+    private void refreshOrderLines() {
+        orderLines.clear();
+        lineModel.setRowCount(0);
+        int orderIndex = orderTable.getSelectedRow();
+        if (orderIndex < 0) {
+            updateActionState();
+            return;
+        }
+        SupplierOrder selectedOrder = orders.get(orderTable.convertRowIndexToModel(orderIndex));
+        try {
+            orderLines.addAll(supplierDAO.getOrderLines(selectedOrder.getOrderNumber()));
+            for (Product line : orderLines) {
+                BigDecimal unitPrice = BigDecimal.valueOf(line.getPurchasePrice());
+                BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(line.getStockQuantity()));
+                lineModel.addRow(new Object[] { line.getReference(), line.getDesignation(),
+                        line.getStockQuantity(), formatMoney(unitPrice), formatMoney(lineTotal) });
+            }
+            updateActionState();
+        } catch (IllegalStateException exception) {
+            showError(exception.getMessage());
+        }
     }
 
     private void addSupplier() {
+        if (!canManageSuppliers()) {
+            return;
+        }
+        JTextField codeField = StyleManager.createField();
+        JTextField nameField = StyleManager.createField();
+        JTextField phoneField = StyleManager.createField();
+        JTextField addressField = StyleManager.createField();
+        JPanel form = StyleManager.createForm("Supplier details");
+        StyleManager.addRow(form, 0, "Code:", codeField);
+        StyleManager.addRow(form, 1, "Name:", nameField);
+        StyleManager.addRow(form, 2, "Phone:", phoneField);
+        StyleManager.addRow(form, 3, "Address:", addressField);
+        if (JOptionPane.showConfirmDialog(this, form, "Add supplier", JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) {
+            return;
+        }
         try {
-            int code = Integer.parseInt(tfCode.getText().trim());
-            String name = tfName.getText().trim();
-            String phone = tfPhone.getText().trim();
-            String address = tfAddress.getText().trim();
-            if (name.isEmpty() || phone.isEmpty() || address.isEmpty()) {
-                throw new IllegalArgumentException("Tous les champs doivent être remplis.");
+            int code = Integer.parseInt(codeField.getText().trim());
+            String name = nameField.getText().trim();
+            String phone = phoneField.getText().trim();
+            String address = addressField.getText().trim();
+            if (code <= 0 || name.isEmpty() || phone.isEmpty() || address.isEmpty()) {
+                throw new IllegalArgumentException("Enter a positive code and complete all supplier details.");
             }
-            suppliers.add(new Supplier(code, name, phone, address));
-            refreshTable();
-            clearForm();
-            JOptionPane.showMessageDialog(this, "Fournisseur ajouté.");
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Le code doit être numérique.", "Erreur", JOptionPane.ERROR_MESSAGE);
-        } catch (IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(this, ex.getMessage(), "Erreur", JOptionPane.ERROR_MESSAGE);
+            supplierDAO.addSupplier(new Supplier(code, name, phone, address));
+            refreshSuppliers();
+        } catch (NumberFormatException exception) {
+            showError("Supplier code must be numeric.");
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            showError(exception.getMessage());
         }
     }
 
     private void deleteSupplier() {
-        int selectedRow = table.getSelectedRow();
-        if (selectedRow == -1) {
-            JOptionPane.showMessageDialog(this, "Sélectionnez un fournisseur.");
+        if (!canManageSuppliers()) {
             return;
         }
-        suppliers.remove(selectedRow);
-        refreshTable();
-    }
-
-    private void refreshTable() {
-        tableModel.setRowCount(0);
-        for (Supplier supplier : suppliers) {
-            tableModel.addRow(new Object[]{supplier.getCode(), supplier.getName(), supplier.getTelephone(), supplier.getAddress()});
+        Supplier supplier = getSelectedSupplier();
+        if (supplier == null) {
+            showError("Select a supplier first.");
+            return;
+        }
+        int confirmation = JOptionPane.showConfirmDialog(this,
+                "Delete supplier " + supplier.getName() + "? Suppliers with orders cannot be deleted.",
+                "Confirm deletion", JOptionPane.YES_NO_OPTION);
+        if (confirmation != JOptionPane.YES_OPTION) {
+            return;
+        }
+        try {
+            supplierDAO.deleteSupplier(supplier.getCode());
+            refreshSuppliers();
+        } catch (IllegalStateException exception) {
+            showError(exception.getMessage());
         }
     }
 
-    private void clearForm() {
-        tfCode.setText("");
-        tfName.setText("");
-        tfPhone.setText("");
-        tfAddress.setText("");
+    private void createOrder() {
+        if (!canCreateOrders()) {
+            return;
+        }
+        Supplier supplier = getSelectedSupplier();
+        if (supplier == null) {
+            showError("Select a supplier first.");
+            return;
+        }
+        try {
+            int orderNumber = supplierDAO.createOrder(supplier.getCode(), role);
+            refreshOrders();
+            for (int index = 0; index < orders.size(); index++) {
+                if (orders.get(index).getOrderNumber() == orderNumber) {
+                    orderTable.setRowSelectionInterval(index, index);
+                    break;
+                }
+            }
+        } catch (IllegalStateException exception) {
+            showError(exception.getMessage());
+        }
+    }
+
+    private void addProductToOrder() {
+        if (!canCreateOrders()) {
+            return;
+        }
+        SupplierOrder order = getSelectedOrder();
+        if (order == null || order.getStatus() != SupplierOrder.OrderStatus.PENDING) {
+            showError("Select a pending order first.");
+            return;
+        }
+        try {
+            List<Product> products = productDAO.getAllProducts();
+            if (products.isEmpty()) {
+                showError("There are no products to order.");
+                return;
+            }
+            JComboBox<Product> productSelector = new JComboBox<>(products.toArray(Product[]::new));
+            productSelector.setRenderer(new DefaultListCellRenderer() {
+                @Override
+                public Component getListCellRendererComponent(JList<?> list, Object value, int index,
+                        boolean isSelected, boolean cellHasFocus) {
+                    JLabel label = (JLabel) super.getListCellRendererComponent(
+                            list, value, index, isSelected, cellHasFocus);
+                    if (value instanceof Product product) {
+                        label.setText(product.getReference() + " - " + product.getDesignation()
+                                + " (" + formatMoney(BigDecimal.valueOf(product.getPurchasePrice())) + ")");
+                    }
+                    return label;
+                }
+            });
+            JSpinner quantitySpinner = new JSpinner(new SpinnerNumberModel(1, 1, 100000, 1));
+            JLabel totalLabel = new JLabel();
+            totalLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+            Runnable updateTotal = () -> {
+                Product product = (Product) productSelector.getSelectedItem();
+                int quantity = (Integer) quantitySpinner.getValue();
+                BigDecimal total = product == null ? BigDecimal.ZERO
+                        : BigDecimal.valueOf(product.getPurchasePrice()).multiply(BigDecimal.valueOf(quantity));
+                totalLabel.setText("Line total: " + formatMoney(total));
+            };
+            productSelector.addActionListener(event -> updateTotal.run());
+            quantitySpinner.addChangeListener(event -> updateTotal.run());
+            updateTotal.run();
+            JPanel form = StyleManager.createForm("Order item");
+            StyleManager.addRow(form, 0, "Product:", productSelector);
+            StyleManager.addRow(form, 1, "Quantity:", quantitySpinner);
+            StyleManager.addRow(form, 2, "Calculated total:", totalLabel);
+            if (JOptionPane.showConfirmDialog(this, form, "Add product to order", JOptionPane.OK_CANCEL_OPTION,
+                    JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) {
+                return;
+            }
+            Product product = (Product) productSelector.getSelectedItem();
+                supplierDAO.addOrderLine(order.getOrderNumber(), product.getReference(),
+                    (Integer) quantitySpinner.getValue(), role);
+            refreshOrders();
+            selectOrder(order.getOrderNumber());
+        } catch (IllegalStateException | IllegalArgumentException exception) {
+            showError(exception.getMessage());
+        }
+    }
+
+    private void removeProductFromOrder() {
+        if (!canCreateOrders()) {
+            return;
+        }
+        SupplierOrder order = getSelectedOrder();
+        int lineIndex = lineTable.getSelectedRow();
+        if (order == null || lineIndex < 0) {
+            showError("Select an order item first.");
+            return;
+        }
+        if (order.getStatus() != SupplierOrder.OrderStatus.PENDING) {
+            showError("Only items from pending orders can be removed.");
+            return;
+        }
+        Product line = orderLines.get(lineTable.convertRowIndexToModel(lineIndex));
+        try {
+            supplierDAO.removeOrderLine(order.getOrderNumber(), line.getReference(), role);
+            refreshOrders();
+            selectOrder(order.getOrderNumber());
+        } catch (IllegalStateException exception) {
+            showError(exception.getMessage());
+        }
+    }
+
+    private void reviewOrder(SupplierOrder.OrderStatus status) {
+        if (!canReviewOrders()) {
+            return;
+        }
+        SupplierOrder order = getSelectedOrder();
+        if (order == null || order.getStatus() != SupplierOrder.OrderStatus.PENDING) {
+            showError("Select a pending order first.");
+            return;
+        }
+        String action = status == SupplierOrder.OrderStatus.APPROUVED ? "approve" : "refuse";
+        int confirmation = JOptionPane.showConfirmDialog(this, "Do you want to " + action + " this order?",
+                "Review order", JOptionPane.YES_NO_OPTION);
+        if (confirmation != JOptionPane.YES_OPTION) {
+            return;
+        }
+        try {
+            supplierDAO.updateOrderStatus(order.getOrderNumber(), status, role);
+            refreshOrders();
+            selectOrder(order.getOrderNumber());
+        } catch (IllegalStateException exception) {
+            showError(exception.getMessage());
+        }
+    }
+
+    private void markOrderDelivered() {
+        if (!canMarkDelivered()) {
+            return;
+        }
+        SupplierOrder order = getSelectedOrder();
+        if (order == null || order.getStatus() != SupplierOrder.OrderStatus.APPROUVED) {
+            showError("Select an approved order first.");
+            return;
+        }
+        int confirmation = JOptionPane.showConfirmDialog(this,
+                "Confirm receipt of this order and add its quantities to stock?", "Mark order delivered",
+                JOptionPane.YES_NO_OPTION);
+        if (confirmation != JOptionPane.YES_OPTION) {
+            return;
+        }
+        try {
+            supplierDAO.updateOrderStatus(order.getOrderNumber(), SupplierOrder.OrderStatus.DELIVERED, role);
+            refreshOrders();
+            selectOrder(order.getOrderNumber());
+        } catch (IllegalStateException exception) {
+            showError(exception.getMessage());
+        }
+    }
+
+    private void selectOrder(int orderNumber) {
+        for (int index = 0; index < orders.size(); index++) {
+            if (orders.get(index).getOrderNumber() == orderNumber) {
+                orderTable.setRowSelectionInterval(index, index);
+                return;
+            }
+        }
+    }
+
+    private void updateActionState() {
+        SupplierOrder order = getSelectedOrder();
+        boolean hasSupplier = getSelectedSupplier() != null;
+        boolean pending = order != null && order.getStatus() == SupplierOrder.OrderStatus.PENDING;
+        boolean approved = order != null && order.getStatus() == SupplierOrder.OrderStatus.APPROUVED;
+        addSupplierButton.setEnabled(canManageSuppliers());
+        deleteSupplierButton.setEnabled(canManageSuppliers() && hasSupplier);
+        newOrderButton.setEnabled(canCreateOrders() && hasSupplier);
+        addProductButton.setEnabled(canCreateOrders() && pending);
+        removeProductButton.setEnabled(canCreateOrders() && pending && lineTable.getSelectedRow() >= 0);
+        approveOrderButton.setEnabled(canReviewOrders() && pending);
+        refuseOrderButton.setEnabled(canReviewOrders() && pending);
+        deliveredOrderButton.setEnabled(canMarkDelivered() && approved);
+    }
+
+    private boolean canManageSuppliers() {
+        return false;
+    }
+
+    private boolean canCreateOrders() {
+        return canManageOrders();
+    }
+
+    private boolean canReviewOrders() {
+        return role == Role.COUNTER;
+    }
+
+    private boolean canMarkDelivered() {
+        return canManageOrders();
+    }
+
+    private boolean canManageOrders() {
+        return role == Role.MANAGER;
+    }
+
+    private String formatStatus(SupplierOrder.OrderStatus status) {
+        return switch (status) {
+            case PENDING -> "Pending";
+            case APPROUVED -> "Approved";
+            case DENIDED -> "Refused";
+            case DELIVERED -> "Delivered";
+        };
+    }
+
+    private Supplier getSelectedSupplier() {
+        int row = supplierTable.getSelectedRow();
+        return row < 0 ? null : suppliers.get(supplierTable.convertRowIndexToModel(row));
+    }
+
+    private SupplierOrder getSelectedOrder() {
+        int row = orderTable.getSelectedRow();
+        return row < 0 ? null : orders.get(orderTable.convertRowIndexToModel(row));
+    }
+
+    private String formatMoney(BigDecimal amount) {
+        return amount == null ? "0.00 USD" : String.format("%.2f USD", amount);
+    }
+
+    private void showError(String message) {
+        JOptionPane.showMessageDialog(this, message, "Supplier management", JOptionPane.ERROR_MESSAGE);
     }
 
     public static void main(String[] args) {
+        StyleManager.applyLookAndFeel();
         javax.swing.SwingUtilities.invokeLater(() -> new SupplierView().setVisible(true));
     }
 }

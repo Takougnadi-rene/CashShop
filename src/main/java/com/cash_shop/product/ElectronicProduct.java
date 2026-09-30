@@ -2,12 +2,25 @@ package com.cash_shop.product;
 
 public class ElectronicProduct extends Product {
 
+    String brand;
     int warranty;
-    public ElectronicProduct(int reference, String designation, double purchasePrice, double sellingPrice, int stockQuantity, int warranty) {
+
+    public ElectronicProduct(int reference, String designation, double purchasePrice, double sellingPrice,
+            int stockQuantity, String brand, int warranty) {
         super(reference, designation, purchasePrice, sellingPrice, stockQuantity);
+        this.brand = brand;
         this.warranty = warranty;
     }
-    //getters and setters
+
+    // getters and setters
+    public String getBrand() {
+        return brand;
+    }
+
+    public void setBrand(String brand) {
+        this.brand = brand;
+    }
+
     public int getWarranty() {
         return warranty;
     }
@@ -18,11 +31,10 @@ public class ElectronicProduct extends Product {
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("ArtisanalProduct{");
-        sb.append("warranty=").append(warranty);
-        sb.append('}');
-        return sb.toString();
+        return super.toString() + "ElectronicProduct{" +
+                "brand='" + brand + '\'' +
+                ", warranty=" + warranty +
+                '}';
     }
 
 }

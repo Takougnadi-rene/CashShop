@@ -1,286 +1,298 @@
 package com.cash_shop.employee;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.FlowLayout;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.GridLayout;
-import java.awt.Insets;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-import javax.swing.BorderFactory;
+import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.Timer;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 
-import static com.cash_shop.common.StyleManager.ACCENT_BLUE;
-import static com.cash_shop.common.StyleManager.ACCENT_GOLD;
-import static com.cash_shop.common.StyleManager.ACCENT_GREEN;
-import static com.cash_shop.common.StyleManager.ACCENT_RED;
-import static com.cash_shop.common.StyleManager.BG_DARK;
-import static com.cash_shop.common.StyleManager.BG_PANEL;
-import static com.cash_shop.common.StyleManager.FONT_BODY;
-import static com.cash_shop.common.StyleManager.FONT_HEADER;
-import static com.cash_shop.common.StyleManager.FONT_SMALL;
-import static com.cash_shop.common.StyleManager.FONT_TITLE;
-import static com.cash_shop.common.StyleManager.TEXT_MUTED;
-import static com.cash_shop.common.StyleManager.TEXT_PRIMARY;
-import static com.cash_shop.common.StyleManager.createButton;
-import static com.cash_shop.common.StyleManager.createCard;
-import static com.cash_shop.common.StyleManager.createField;
-import static com.cash_shop.common.StyleManager.createLabel;
-import static com.cash_shop.common.StyleManager.createTable;
+import com.cash_shop.common.EmailService;
+import com.cash_shop.common.StyleManager;
+import com.cash_shop.user.AccountCredentials;
 
 public class EmployeeView extends JFrame {
-    private JTextField tfMatricule, tfPrenom, tfNom, tfEmail, tfSalaire, tfRecherche;
-    private JComboBox<Employee.Role> cbRole;
-    private DefaultTableModel tableModel;
-    private JTable table;
-    private Employee employeeSelectionne;
+    private static final Logger LOGGER = Logger.getLogger(EmployeeView.class.getName());
+    private final JTextField tfEmployeeId = StyleManager.createField();
+    private final JTextField tfFirstName = StyleManager.createField();
+    private final JTextField tfLastName = StyleManager.createField();
+    private final JTextField tfEmail = StyleManager.createField();
+    private final JTextField tfSalary = StyleManager.createField();
+    private final JTextField tfSearch = new JTextField(20);
+    private final JComboBox<Employee.Role> cbRole = new JComboBox<>(Employee.Role.values());
+    private final DefaultTableModel tableModel = StyleManager.createReadOnlyModel(
+            "Employee ID", "First Name", "Last Name", "Email", "Salary", "Role");
+    private final JTable table = StyleManager.createTable(tableModel);
+    private Employee selectedEmployee;
     private final EmployeeDAO employeeDAO = new EmployeeDAO();
+    private final EmployeeService employeeService = new EmployeeService();
+    private final EmailService emailService = new EmailService();
     private final List<Employee> employees = new ArrayList<>();
+    private final List<Employee> visibleEmployees = new ArrayList<>();
+    private final boolean readOnly;
+    private boolean refreshing;
+    private final Timer refreshTimer = new Timer(5000, event -> refreshFromDatabase());
 
     public EmployeeView() {
-        setTitle("Gestion des Employés");
-        setSize(900, 580);
+        this(false);
+    }
+
+    public EmployeeView(boolean readOnly) {
+        this.readOnly = readOnly;
+        setTitle("Employee Management");
+        setSize(950, 520);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         buildUI();
-        chargerEmployes();
+        tfEmployeeId.setEditable(!readOnly);
+        tfFirstName.setEditable(!readOnly);
+        tfLastName.setEditable(!readOnly);
+        tfEmail.setEditable(!readOnly);
+        tfSalary.setEditable(!readOnly);
+        cbRole.setEnabled(!readOnly);
+        loadEmployees();
+        refreshTimer.start();
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosed(WindowEvent event) {
+                refreshTimer.stop();
+            }
+        });
     }
 
     private void buildUI() {
-        JPanel main = new JPanel(new BorderLayout());
-        main.setBackground(BG_DARK);
+        // Formulaire à gauche
+        JPanel form = StyleManager.createForm("Employee details");
+        StyleManager.addRow(form, 0, "Employee ID:", tfEmployeeId);
+        StyleManager.addRow(form, 1, "First Name:", tfFirstName);
+        StyleManager.addRow(form, 2, "Last Name:", tfLastName);
+        StyleManager.addRow(form, 3, "Email:", tfEmail);
+        StyleManager.addRow(form, 4, "Salary:", tfSalary);
+        StyleManager.addRow(form, 5, "Role:", cbRole);
+        JPanel left = new JPanel(new BorderLayout());
+        left.add(form, BorderLayout.NORTH);
 
-        JPanel titrePanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        titrePanel.setBackground(BG_PANEL);
-        titrePanel.setBorder(BorderFactory.createEmptyBorder(8, 0, 8, 0));
-        titrePanel.add(createLabel("========== ⚙ GESTION DES EMPLOYÉS ==========", ACCENT_GOLD, FONT_TITLE));
+        // Recherche au-dessus du tableau
+        JButton btnSearch = new JButton("Search");
+        btnSearch.addActionListener(event -> searchEmployee());
+        tfSearch.addActionListener(event -> searchEmployee());
+        JPanel searchBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        searchBar.add(new JLabel("Search:"));
+        searchBar.add(tfSearch);
+        searchBar.add(btnSearch);
 
-        JPanel corps = new JPanel(new GridLayout(1, 2, 10, 0));
-        corps.setBackground(BG_DARK);
-        corps.setBorder(BorderFactory.createEmptyBorder(10, 10, 5, 10));
+        table.getSelectionModel().addListSelectionListener(event -> selectEmployee());
+        JPanel center = new JPanel(new BorderLayout(0, 8));
+        center.add(searchBar, BorderLayout.NORTH);
+        center.add(new JScrollPane(table), BorderLayout.CENTER);
 
-        JPanel formPanel = createCard();
-        formPanel.setLayout(new GridBagLayout());
-        GridBagConstraints g = new GridBagConstraints();
-        g.insets = new Insets(5, 5, 5, 5);
-        g.fill = GridBagConstraints.HORIZONTAL;
-        g.gridx = 0;
-        g.gridy = 0;
-        g.gridwidth = 2;
-        formPanel.add(createLabel("[ Formulaire Employé ]", ACCENT_BLUE, FONT_HEADER), g);
-        g.gridwidth = 1;
+        // Boutons
+        JButton btnAdd = new JButton("Add");
+        JButton btnModify = new JButton("Modify");
+        JButton btnDelete = new JButton("Delete");
+        JButton btnClose = new JButton("Close");
+        btnAdd.setEnabled(!readOnly);
+        btnModify.setEnabled(!readOnly);
+        btnDelete.setEnabled(!readOnly);
+        btnAdd.addActionListener(event -> addEmployee());
+        btnModify.addActionListener(event -> updateEmployee());
+        btnDelete.addActionListener(event -> deleteEmployee());
+        btnClose.addActionListener(event -> dispose());
 
-        ajouterChamp(formPanel, g, 1, "Matricule :", tfMatricule = createField());
-        ajouterChamp(formPanel, g, 2, "Prénom :", tfPrenom = createField());
-        ajouterChamp(formPanel, g, 3, "Nom :", tfNom = createField());
-        ajouterChamp(formPanel, g, 4, "Email :", tfEmail = createField());
-        ajouterChamp(formPanel, g, 5, "Salaire :", tfSalaire = createField());
-
-        g.gridy = 6;
-        g.gridx = 0;
-        formPanel.add(createLabel("Rôle :", TEXT_MUTED, FONT_SMALL), g);
-        g.gridx = 1;
-        cbRole = new JComboBox<>(Employee.Role.values());
-        cbRole.setBackground(BG_DARK);
-        cbRole.setForeground(TEXT_PRIMARY);
-        cbRole.setFont(FONT_BODY);
-        formPanel.add(cbRole, g);
-
-        g.gridy = 7;
-        g.gridx = 0;
-        formPanel.add(createLabel("Recherche :", TEXT_MUTED, FONT_SMALL), g);
-        g.gridx = 1;
-        tfRecherche = createField();
-        formPanel.add(tfRecherche, g);
-
-        JPanel listePanel = createCard();
-        listePanel.setLayout(new BorderLayout());
-        listePanel.add(createLabel("[ Liste des Employés ]", ACCENT_BLUE, FONT_HEADER), BorderLayout.NORTH);
-        tableModel = new DefaultTableModel(
-                new String[] { "Matricule", "Prénom", "Nom", "Email", "Salaire", "Rôle" }, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        };
-        table = createTable(tableModel);
-        table.getSelectionModel().addListSelectionListener(event -> selectionnerEmploye());
-        listePanel.add(new JScrollPane(table), BorderLayout.CENTER);
-        corps.add(formPanel);
-        corps.add(listePanel);
-
-        JPanel actionsPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 8));
-        actionsPanel.setBackground(BG_PANEL);
-        actionsPanel.add(createLabel("[ Actions ]", TEXT_MUTED, FONT_SMALL));
-        javax.swing.JButton btnAjouter = createButton("+ Add", ACCENT_GREEN);
-        javax.swing.JButton btnModifier = createButton("✎ Modify", ACCENT_BLUE);
-        javax.swing.JButton btnSupprimer = createButton("✕ Delete", ACCENT_RED);
-        javax.swing.JButton btnRecherche = createButton("⚲ Search", ACCENT_GOLD);
-        javax.swing.JButton btnFermer = createButton("Close", new Color(80, 80, 100));
-        btnAjouter.addActionListener(event -> ajouterEmploye());
-        btnModifier.addActionListener(event -> modifierEmploye());
-        btnSupprimer.addActionListener(event -> supprimerEmployee());
-        btnRecherche.addActionListener(event -> rechercherEmploye());
-        btnFermer.addActionListener(event -> dispose());
-        actionsPanel.add(btnAjouter);
-        actionsPanel.add(btnModifier);
-        actionsPanel.add(btnSupprimer);
-        actionsPanel.add(btnRecherche);
-        actionsPanel.add(btnFermer);
-
-        main.add(titrePanel, BorderLayout.NORTH);
-        main.add(corps, BorderLayout.CENTER);
-        main.add(actionsPanel, BorderLayout.SOUTH);
-        setContentPane(main);
+        JPanel page = StyleManager.createPage();
+        page.add(StyleManager.createTitle("Employees"), BorderLayout.NORTH);
+        page.add(left, BorderLayout.WEST);
+        page.add(center, BorderLayout.CENTER);
+        page.add(StyleManager.createButtonBar(btnAdd, btnModify, btnDelete, btnClose), BorderLayout.SOUTH);
+        setContentPane(page);
     }
 
-    private void ajouterChamp(JPanel panel, GridBagConstraints constraints, int row, String label,
-            JTextField field) {
-        constraints.gridy = row;
-        constraints.gridx = 0;
-        panel.add(createLabel(label, TEXT_MUTED, FONT_SMALL), constraints);
-        constraints.gridx = 1;
-        panel.add(field, constraints);
-    }
-
-    private void chargerEmployes() {
+    private void loadEmployees() {
+        String selectedMatricule = selectedEmployee == null ? null : selectedEmployee.getMatricule();
+        refreshing = true;
         employees.clear();
         employees.addAll(employeeDAO.getAllEmployees());
-        afficherEmployes(employees);
+        searchEmployee();
+        if (selectedMatricule != null) {
+            boolean selectionRestored = false;
+            for (int index = 0; index < visibleEmployees.size(); index++) {
+                if (selectedMatricule.equals(visibleEmployees.get(index).getMatricule())) {
+                    selectedEmployee = visibleEmployees.get(index);
+                    table.setRowSelectionInterval(index, index);
+                    selectionRestored = true;
+                    break;
+                }
+            }
+            if (!selectionRestored) {
+                selectedEmployee = null;
+                table.clearSelection();
+            }
+        }
+        refreshing = false;
     }
 
-    private void afficherEmployes(List<Employee> employes) {
+    private void displayEmployees(List<Employee> employeeList) {
+        visibleEmployees.clear();
+        visibleEmployees.addAll(employeeList);
         tableModel.setRowCount(0);
-        for (Employee employee : employes) {
+        for (Employee employee : employeeList) {
             tableModel.addRow(new Object[] { employee.getMatricule(), employee.getFirstName(),
                     employee.getLastName(), employee.getEmail(), String.format("%.2f", employee.getSalary()),
                     employee.getRole() });
         }
     }
 
-    private void selectionnerEmploye() {
+    private void selectEmployee() {
+        if (refreshing) {
+            return;
+        }
         int row = table.getSelectedRow();
-        if (row < 0 || row >= employees.size()) {
+        if (row < 0 || row >= visibleEmployees.size()) {
             return;
         }
-        employeeSelectionne = employees.get(row);
-        tfMatricule.setText(employeeSelectionne.getMatricule());
-        tfPrenom.setText(employeeSelectionne.getFirstName());
-        tfNom.setText(employeeSelectionne.getLastName());
-        tfEmail.setText(employeeSelectionne.getEmail());
-        tfSalaire.setText(String.valueOf(employeeSelectionne.getSalary()));
-        cbRole.setSelectedItem(employeeSelectionne.getRole());
+        selectedEmployee = visibleEmployees.get(row);
+        tfEmployeeId.setText(selectedEmployee.getMatricule());
+        tfFirstName.setText(selectedEmployee.getFirstName());
+        tfLastName.setText(selectedEmployee.getLastName());
+        tfEmail.setText(selectedEmployee.getEmail());
+        tfSalary.setText(String.valueOf(selectedEmployee.getSalary()));
+        cbRole.setSelectedItem(selectedEmployee.getRole());
     }
 
-    private void ajouterEmploye() {
+    private void addEmployee() {
         try {
-            Employee employee = lireEmploye();
-            employeeDAO.addEmployee(employee);
+            Employee employee = readEmployee();
+            AccountCredentials credentials = employeeService.addEmployee(
+                    employee.getMatricule(),
+                    employee.getFirstName(),
+                    employee.getLastName(),
+                    employee.getEmail(),
+                    employee.getSalary(),
+                    employee.getRole());
             employees.add(employee);
-            chargerEmployes();
-            viderFormulaire();
-            afficherSucces("Employé ajouté avec succès.");
-        } catch (IllegalArgumentException exception) {
-            afficherErreur(exception.getMessage());
+            loadEmployees();
+            clearForm();
+            boolean emailSent = emailService.sendEmployeeCredentials(employee.getEmail(), credentials.login(),
+                    credentials.password());
+            String message = "Employee and application account created.\n\nLogin: " + credentials.login()
+                    + "\nTemporary password: " + credentials.password()
+                    + (emailSent ? "\n\nCredentials sent to " + employee.getEmail() + "."
+                            : "\n\nEmail was not sent. Configure SMTP to enable email delivery.");
+            showSuccess(message);
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            showError(exception.getMessage());
         }
     }
 
-    private void modifierEmploye() {
-        if (employeeSelectionne == null) {
-            afficherErreur("Sélectionnez un employé.");
+    private void updateEmployee() {
+        if (selectedEmployee == null) {
+            showError("Select an employee.");
             return;
         }
         try {
-            Employee employee = lireEmploye();
-            int index = employees.indexOf(employeeSelectionne);
+            Employee employee = readEmployee();
+            int index = employees.indexOf(selectedEmployee);
             employeeDAO.updateEmployee(employee);
             employees.set(index, employee);
-            chargerEmployes();
-            viderFormulaire();
-            afficherSucces("Employé modifié.");
+            loadEmployees();
+            clearForm();
+            showSuccess("Employee updated.");
         } catch (IllegalArgumentException exception) {
-            afficherErreur(exception.getMessage());
+            showError(exception.getMessage());
         }
     }
 
-    private void supprimerEmployee() {
-        if (employeeSelectionne == null) {
-            afficherErreur("Sélectionnez un employé.");
+    private void deleteEmployee() {
+        if (selectedEmployee == null) {
+            showError("Select an employee.");
             return;
         }
         int confirmation = JOptionPane.showConfirmDialog(this,
-                "Supprimer " + employeeSelectionne.getFirstName() + " " + employeeSelectionne.getLastName() + " ?",
+                "Delete " + selectedEmployee.getFirstName() + " " + selectedEmployee.getLastName() + " ?",
                 "Confirmation", JOptionPane.YES_NO_OPTION);
         if (confirmation == JOptionPane.YES_OPTION) {
-            employeeDAO.removeEmployee(employeeSelectionne);
-            employees.remove(employeeSelectionne);
-            chargerEmployes();
-            viderFormulaire();
+            employeeDAO.deleteEmployee(selectedEmployee.getMatricule());
+            employees.remove(selectedEmployee);
+            loadEmployees();
+            clearForm();
         }
     }
 
-    private Employee lireEmploye() {
-        String matricule = tfMatricule.getText().trim();
-        String prenom = tfPrenom.getText().trim();
-        String nom = tfNom.getText().trim();
+    private Employee readEmployee() {
+        String employeeId = tfEmployeeId.getText().trim();
+        String firstName = tfFirstName.getText().trim();
+        String lastName = tfLastName.getText().trim();
         String email = tfEmail.getText().trim();
-        if (matricule.isEmpty() || prenom.isEmpty() || nom.isEmpty() || email.isEmpty()) {
-            throw new IllegalArgumentException("Remplissez tous les champs.");
+        if (employeeId.isEmpty() || firstName.isEmpty() || lastName.isEmpty() || email.isEmpty()) {
+            throw new IllegalArgumentException("Please fill in all fields.");
         }
         try {
-            double salaire = Double.parseDouble(tfSalaire.getText().trim());
-            return new Employee(matricule, prenom, nom, email, salaire,
+            double salary = Double.parseDouble(tfSalary.getText().trim());
+            return new Employee(employeeId, firstName, lastName, email, salary,
                     (Employee.Role) cbRole.getSelectedItem());
         } catch (NumberFormatException exception) {
-            throw new IllegalArgumentException("Vérifiez la valeur du salaire.");
+            throw new IllegalArgumentException("Please check the salary value.");
         }
     }
 
-    private void rechercherEmploye() {
-        String terme = tfRecherche.getText().trim().toLowerCase();
-        List<Employee> resultats = new ArrayList<>();
+    private void searchEmployee() {
+        String term = tfSearch.getText().trim().toLowerCase();
+        List<Employee> results = new ArrayList<>();
         for (Employee employee : employees) {
-            if (employee.getMatricule().toLowerCase().contains(terme)
-                    || employee.getFirstName().toLowerCase().contains(terme)
-                    || employee.getLastName().toLowerCase().contains(terme)
-                    || employee.getEmail().toLowerCase().contains(terme)) {
-                resultats.add(employee);
+            if (employee.getMatricule().toLowerCase().contains(term)
+                    || employee.getFirstName().toLowerCase().contains(term)
+                    || employee.getLastName().toLowerCase().contains(term)
+                    || employee.getEmail().toLowerCase().contains(term)) {
+                results.add(employee);
             }
         }
-        afficherEmployes(resultats);
+        displayEmployees(results);
     }
 
-    private void viderFormulaire() {
-        tfMatricule.setText("");
-        tfPrenom.setText("");
-        tfNom.setText("");
+    private void refreshFromDatabase() {
+        try {
+            loadEmployees();
+        } catch (IllegalStateException exception) {
+            LOGGER.log(Level.FINE, "Unable to refresh employees.", exception);
+        }
+    }
+
+    private void clearForm() {
+        tfEmployeeId.setText("");
+        tfFirstName.setText("");
+        tfLastName.setText("");
         tfEmail.setText("");
-        tfSalaire.setText("");
-        tfRecherche.setText("");
+        tfSalary.setText("");
+        tfSearch.setText("");
         cbRole.setSelectedIndex(0);
-        employeeSelectionne = null;
+        selectedEmployee = null;
         table.clearSelection();
     }
 
-    private void afficherErreur(String message) {
-        JOptionPane.showMessageDialog(this, message, "Erreur", JOptionPane.ERROR_MESSAGE);
+    private void showError(String message) {
+        JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
     }
 
-    private void afficherSucces(String message) {
-        JOptionPane.showMessageDialog(this, message, "Succès", JOptionPane.INFORMATION_MESSAGE);
+    private void showSuccess(String message) {
+        JOptionPane.showMessageDialog(this, message, "Success", JOptionPane.INFORMATION_MESSAGE);
     }
 
     public static void main(String[] args) {
+        StyleManager.applyLookAndFeel();
         javax.swing.SwingUtilities.invokeLater(() -> new EmployeeView().setVisible(true));
     }
 }

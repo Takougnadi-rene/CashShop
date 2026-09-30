@@ -1,23 +1,51 @@
 package com.cash_shop.product;
 
+import java.util.Locale;
+
 public class ArtisanalProduct extends Product {
 
     public enum TypeArtisanal {
-        BACERY, FISHMONGER, BUTCHER
-    }
-    private TypeArtisanal type;
+        BAKERY, FISHMONGER, BUTCHER;
 
-    public ArtisanalProduct(int reference, String designation, double purchasePrice, double sellingPrice, int stockQuantity, 
-        TypeArtisanal type) {
+        public static TypeArtisanal from(String type) {
+            String normalized = type.trim().toUpperCase(Locale.ROOT);
+            if ("BACERY".equals(normalized)) {
+                normalized = "BAKERY";
+            }
+            return valueOf(normalized);
+        }
+    }
+
+    private TypeArtisanal artisanalType;
+
+    public ArtisanalProduct(int reference, String designation, double purchasePrice, double sellingPrice,
+            int stockQuantity,
+            TypeArtisanal type) {
         super(reference, designation, purchasePrice, sellingPrice, stockQuantity);
-        this.type = type;
+        this.artisanalType = type;
     }
-    // Getter and Setter for type
-    public TypeArtisanal getType() {
-        return type;
+    // getters and setters
+
+    public String getType() {
+        return artisanalType.name();
     }
 
-    public void setType(TypeArtisanal type) {
-        this.type = type;
+    public void setType(String type) {
+        if (type == null || type.trim().isEmpty()) {
+            artisanalType = null;
+            return;
+        }
+        artisanalType = TypeArtisanal.from(type);
+    }
+
+    public TypeArtisanal getArtisanalType() {
+        return artisanalType;
+    }
+
+    @Override
+    public String toString() {
+        return "ArtisanalProduct [reference=" + getReference() + ", designation=" + getDesignation()
+                + ", purchasePrice=" + getPurchasePrice() + ", sellingPrice=" + getSellingPrice()
+                + ", stockQuantity=" + getStockQuantity() + ", artisanalType=" + artisanalType + "]";
     }
 }

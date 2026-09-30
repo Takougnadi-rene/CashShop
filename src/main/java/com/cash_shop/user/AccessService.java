@@ -1,0 +1,51 @@
+package com.cash_shop.user;
+
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.Set;
+
+import com.cash_shop.employee.Employee.Role;
+
+public class AccessService {
+    public enum Module {
+        DASHBOARD,
+        EMPLOYEES,
+        USERS,
+        CUSTOMERS,
+        PRODUCTS,
+        STOCK,
+        AISLES,
+        SALES,
+        SALES_HISTORY,
+        SUPPLIERS
+    }
+
+    public Set<Module> getAllowedModules(Role role) {
+        if (role == null) {
+            return Collections.emptySet();
+        }
+        switch (role) {
+            case ADMIN:
+                return Collections.unmodifiableSet(EnumSet.of(Module.DASHBOARD, Module.EMPLOYEES, Module.USERS,
+                        Module.PRODUCTS, Module.STOCK, Module.AISLES, Module.SUPPLIERS, Module.SALES_HISTORY));
+            case MANAGER:
+                return Collections.unmodifiableSet(EnumSet.of(
+                        Module.PRODUCTS, Module.STOCK, Module.SUPPLIERS, Module.AISLES));
+            case COUNTER:
+                return Collections.unmodifiableSet(EnumSet.of(Module.EMPLOYEES,
+                        Module.PRODUCTS, Module.STOCK, Module.SUPPLIERS, Module.SALES_HISTORY));
+            case CASHIER:
+                return Collections.unmodifiableSet(EnumSet.of(Module.SALES));
+            case AISLE_MANAGER:
+                return Collections.unmodifiableSet(EnumSet.of(Module.AISLES));
+            case SECURITY:
+            case CLEANER:
+            default:
+                return Collections.emptySet();
+        }
+    }
+
+    public boolean canAccess(Role role, Module module) {
+        return getAllowedModules(role).contains(module);
+    }
+}

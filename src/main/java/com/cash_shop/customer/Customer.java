@@ -2,90 +2,58 @@ package com.cash_shop.customer;
 
 import java.util.ArrayList;
 
-import com.cash_shop.purchase.Purchase;
+import com.cash_shop.sale.Sale;
+
 
 public class Customer {
-    private String firstName;
-    private String lastName;
+    private final int customerId;
+    private String name;
     private String email;
     private String phoneNumber;
     private double totalSpent;
-    private int loyaltyPoints;
-    private ArrayList<Purchase> purchaseHistory;
+    private int fifelityPoints;
+    private ArrayList<Sale> purchaseHistory;
 
-    public Customer(String firstName, String lastName, String email, String phoneNumber) {
-        this.firstName = firstName;
-        this.lastName = lastName;
+    public Customer(int customerId, String name, String email, String phoneNumber, double totalSpent) {
+        this.customerId = customerId;
+        this.name = name;
         this.email = email;
         this.phoneNumber = phoneNumber;
-        this.totalSpent = 0.0;
-        this.loyaltyPoints = 0;
+        this.totalSpent = totalSpent;
         this.purchaseHistory = new ArrayList<>();
     }
 
-    public String getFirstName() {
-        return firstName;
-    }
+    // getter and setters
 
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
-    }
+    public int getCustomerId() {return customerId;}
+    
+    public String getName() {return name;}
+    public void setName(String name) { this.name = name; }
 
-    public String getLastName() {
-        return lastName;
-    }
+    public String getEmail() { return email;}
+    public void setEmail(String email) { this.email = email;}
 
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
-    }
+    public String getPhoneNumber() { return phoneNumber;}
+    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber;}
 
-    public String getEmail() {
-        return email;
-    }
+    public double getTotalSpent() { return totalSpent;}
+    public void setTotalSpent(double totalSpent) { this.totalSpent = totalSpent;}
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
+    public int getFifelityPoints() { return fifelityPoints;}
 
-    public String getPhoneNumber() {
-        return phoneNumber;
-    }
+    public int getLoyaltyPoints() { return fifelityPoints;}
 
-    public void setPhoneNumber(String phoneNumber) {
-        this.phoneNumber = phoneNumber;
-    }
+    public void setFifelityPoints(int fifelityPoints) { this.fifelityPoints = fifelityPoints;}
 
-    public double getTotalSpent() {
-        return totalSpent;
-    }
+    public void setLoyaltyPoints(int loyaltyPoints) { this.fifelityPoints = loyaltyPoints;}
 
-    public void setTotalSpent(double totalSpent) {
-        this.totalSpent = totalSpent;
-    }
+    public ArrayList<Sale> getPurchaseHistory() { return purchaseHistory;}
 
-    public int getLoyaltyPoints() {
-        return loyaltyPoints;
-    }
+    public void setPurchaseHistory(ArrayList<Sale> purchaseHistory) { this.purchaseHistory = purchaseHistory != null ? purchaseHistory : new ArrayList<>();}
 
-    public void setLoyaltyPoints(int loyaltyPoints) {
-        this.loyaltyPoints = loyaltyPoints;
-    }
-
-    public ArrayList<Purchase> getPurchaseHistory() {
-        return purchaseHistory;
-    }
-
-    public void setPurchaseHistory(ArrayList<Purchase> purchaseHistory) {
-        this.purchaseHistory = purchaseHistory != null ? purchaseHistory : new ArrayList<>();
-    }
-
-    public void addPurchase(Purchase purchase) {
-        if (purchase != null) {
-            purchaseHistory.add(purchase);
+    public void addPurchase(Sale sale) {
+        if (sale != null) {
+            purchaseHistory.add(sale);
         }
-    }
-
-    public String getFullName() {
-        return firstName + " " + lastName;
     }
 }

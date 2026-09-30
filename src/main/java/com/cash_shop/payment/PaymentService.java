@@ -1,18 +1,28 @@
 package com.cash_shop.payment;
 
 public class PaymentService {
-    public void validatePayment(double amount) {
-        if (amount > 0) {
-            System.out.println("Payment validated. Amount: " + amount);
+
+    public boolean processPayment(Payment payment) {
+        if (validatePayment(payment)) {
+            PaymentDAO paymentDAO = new PaymentDAO();
+            paymentDAO.insertPayment(payment);
+            return true;
         } else {
-            System.out.println("Invalid payment amount.");
+            return false;
         }
     }
-    public void displayPaymentDetails(int paymentId, double amount, String paymentMethod, String paymentDate) {
+
+    public boolean validatePayment(Payment payment) {
+        return payment.getAmount() > 0 && payment.getPaymentDate() != null && payment.getPaymentMode() != null
+                && payment.getSale() != null;
+    }
+
+    public void displayPaymentDetails(Payment payment) {
         System.out.println("Payment Details:");
-        System.out.println("Payment ID: " + paymentId);
-        System.out.println("Amount: " + amount);
-        System.out.println("Payment Method: " + paymentMethod);
-        System.out.println("Payment Date: " + paymentDate);
+        System.out.println("Payment Number: " + payment.getPaymentNumber());
+        System.out.println("Amount: " + payment.getAmount());
+        System.out.println("Payment Mode: " + payment.getPaymentMode());
+        System.out.println("Payment Date: " + payment.getPaymentDate());
+        System.out.println("Sale ID: " + payment.getSale().getSaleId());
     }
 }
