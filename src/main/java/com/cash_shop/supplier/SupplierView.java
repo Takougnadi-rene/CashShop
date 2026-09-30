@@ -67,7 +67,7 @@ public class SupplierView extends JFrame {
     public SupplierView(Role role) {
         this.role = role;
         setTitle("Supplier Management");
-        setSize(1120, 680);
+        setSize(Toolkit.getDefaultToolkit().getScreenSize());
         setMinimumSize(new java.awt.Dimension(Toolkit.getDefaultToolkit().getScreenSize()));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -539,10 +539,5 @@ public class SupplierView extends JFrame {
 
     private void showError(String message) {
         JOptionPane.showMessageDialog(this, message, "Supplier management", JOptionPane.ERROR_MESSAGE);
-    }
-
-    public static void main(String[] args) {
-        StyleManager.applyLookAndFeel();
-        javax.swing.SwingUtilities.invokeLater(() -> new SupplierView().setVisible(true));
     }
 }

@@ -2,6 +2,7 @@ package com.cash_shop.sale;
 
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.Toolkit;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.math.BigDecimal;
@@ -48,7 +49,7 @@ public class SaleHistoryView extends JFrame {
             throw new SecurityException("Only administrators and accountants can view sales history.");
         }
         setTitle("Sales History");
-        setSize(900, 560);
+        setSize(Toolkit.getDefaultToolkit().getScreenSize());
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 

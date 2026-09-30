@@ -1,6 +1,7 @@
 package com.cash_shop.customer;
 
 import java.awt.BorderLayout;
+import java.awt.Toolkit;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.sql.SQLException;
@@ -31,7 +32,7 @@ public class CustomerView extends JFrame {
 
     public CustomerView() {
         setTitle("Customer Management");
-        setSize(850, 500);
+        setSize(Toolkit.getDefaultToolkit().getScreenSize());
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLocationRelativeTo(null);
         buildUI();

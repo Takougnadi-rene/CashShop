@@ -49,7 +49,7 @@ public class UserView extends JFrame {
         setResizable(false);
         buildUI();
         pack();
-        setMinimumSize(new Dimension(780, 480));
+        setSize(new Dimension(780, 480));
         setLocationRelativeTo(null);
     }
 
