@@ -6,8 +6,10 @@ import java.util.Set;
 
 import com.cash_shop.employee.Employee.Role;
 
+/** Role-based access control: tells which application modules each role may open. */
 public class AccessService {
-    public enum Module {
+/** Application modules whose access is controlled. */
+public enum Module {
         DASHBOARD,
         EMPLOYEES,
         USERS,
@@ -20,6 +22,7 @@ public class AccessService {
         SUPPLIERS
     }
 
+    /** Returns the modules the role may open (empty for SECURITY, CLEANER or an unknown role). */
     public Set<Module> getAllowedModules(Role role) {
         if (role == null) {
             return Collections.emptySet();
@@ -38,13 +41,12 @@ public class AccessService {
                 return Collections.unmodifiableSet(EnumSet.of(Module.SALES));
             case AISLE_MANAGER:
                 return Collections.unmodifiableSet(EnumSet.of(Module.AISLES));
-            case SECURITY:
-            case CLEANER:
             default:
                 return Collections.emptySet();
         }
     }
 
+    /** Tells whether the role may open the module. */
     public boolean canAccess(Role role, Module module) {
         return getAllowedModules(role).contains(module);
     }

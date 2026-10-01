@@ -9,13 +9,19 @@ import java.util.List;
 
 import com.cash_shop.common.DBConnection;
 
+/** Data access object for the {@code customers} table. */
 public class CustomerDAO {
 
+    /**
+     * Inserts a customer. The e-mail is accepted for API compatibility but is not stored (the table has no
+     * e-mail column).
+     */
     public void insertCustomer(int customerId, String name, String email, String phoneNumber, double totalSpent)
             throws SQLException {
         insertCustomer(customerId, name, phoneNumber, totalSpent);
     }
 
+    /** Inserts a customer with 0 loyalty points. */
     public void insertCustomer(int customerId, String name, String phoneNumber, double totalSpent)
             throws SQLException {
         String sql = "INSERT INTO customers(customer_id, name, phone_number, total_spent, fidelity_points) "
@@ -31,6 +37,7 @@ public class CustomerDAO {
         }
     }
 
+    /** Deletes a customer by id. */
     public void deleteCustomer(int id) throws SQLException {
         String sql = "DELETE FROM customers WHERE customer_id = ?";
         try (Connection connection = DBConnection.getConnection();
@@ -40,6 +47,7 @@ public class CustomerDAO {
         }
     }
 
+    /** Adds loyalty points to a customer. */
     public void addFidelityPoint(int customerId, int points) throws SQLException {
         String sql = "UPDATE customers SET fidelity_points = fidelity_points + ? WHERE customer_id = ?";
         try (Connection connection = DBConnection.getConnection();
@@ -50,6 +58,7 @@ public class CustomerDAO {
         }
     }
 
+    /** Removes loyalty points from a customer. */
     public void removeFidelityPoint(int customerId, int points) throws SQLException {
         String sql = "UPDATE customers SET fidelity_points = fidelity_points - ? WHERE customer_id = ?";
         try (Connection connection = DBConnection.getConnection();
@@ -60,6 +69,7 @@ public class CustomerDAO {
         }
     }
 
+    /** Adds an amount to the total spent by a customer. */
     public void updateTotalSpent(int customerId, double amount) throws SQLException {
         String sql = "UPDATE customers SET total_spent = total_spent + ? WHERE customer_id = ?";
         try (Connection connection = DBConnection.getConnection();
@@ -70,6 +80,7 @@ public class CustomerDAO {
         }
     }
 
+    /** Returns all customers ordered by id. */
     public List<Customer> getAllCustomers() {
         String sql = "SELECT customer_id, name, phone_number, total_spent, fidelity_points "
             + "FROM customers ORDER BY customer_id";
@@ -89,18 +100,20 @@ public class CustomerDAO {
         return customers;
     }
 
+    /** Finds a customer by phone number, or returns null. */
     public Customer getCustomerByPhone(String phoneNumber) {
         String sql = "SELECT customer_id, name, phone_number, total_spent, fidelity_points "
             + "FROM customers WHERE phone_number = ?";
         try (Connection connection = DBConnection.getConnection();
                 PreparedStatement statement = connection.prepareStatement(sql);) {
             statement.setString(1, phoneNumber);
-            ResultSet results = statement.executeQuery();
-            if (results.next()) {
-                Customer customer = new Customer(results.getInt("customer_id"), results.getString("name"), "",
-                    results.getString("phone_number"), results.getDouble("total_spent"));
-                customer.setLoyaltyPoints(results.getInt("fidelity_points"));
-                return customer;
+            try (ResultSet results = statement.executeQuery()) {
+                if (results.next()) {
+                    Customer customer = new Customer(results.getInt("customer_id"), results.getString("name"), "",
+                        results.getString("phone_number"), results.getDouble("total_spent"));
+                    customer.setLoyaltyPoints(results.getInt("fidelity_points"));
+                    return customer;
+                }
             }
         } catch (SQLException exception) {
             throw new IllegalStateException("Unable to load customer from the database.", exception);

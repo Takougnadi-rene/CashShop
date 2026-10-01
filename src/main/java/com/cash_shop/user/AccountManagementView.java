@@ -12,6 +12,7 @@ import javax.swing.JPasswordField;
 
 import com.cash_shop.common.StyleManager;
 
+/** Modal dialog where the logged-in user changes his own password. */
 public class AccountManagementView extends JDialog {
     private final UserService userService = new UserService();
     private final String username;
@@ -19,6 +20,7 @@ public class AccountManagementView extends JDialog {
     private final JPasswordField newPassword = new JPasswordField(18);
     private final JPasswordField confirmPassword = new JPasswordField(18);
 
+    /** Builds the dialog for the given user name. */
     public AccountManagementView(JFrame owner, String username) {
         super(owner, "Manage my account", true);
         this.username = username;
@@ -47,6 +49,7 @@ public class AccountManagementView extends JDialog {
         setContentPane(page);
     }
 
+    /** Checks that the new passwords match, then changes the password. */
     private void changePassword() {
         String current = new String(currentPassword.getPassword());
         String replacement = new String(newPassword.getPassword());
@@ -67,6 +70,7 @@ public class AccountManagementView extends JDialog {
         }
     }
 
+    /** Displays an error dialog. */
     private void showError(String message) {
         JOptionPane.showMessageDialog(this, message, "Account", JOptionPane.ERROR_MESSAGE);
     }

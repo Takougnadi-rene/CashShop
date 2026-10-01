@@ -1,7 +1,6 @@
 package com.cash_shop.sale;
 
 import java.awt.BorderLayout;
-import java.awt.FlowLayout;
 import java.awt.Toolkit;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -10,33 +9,36 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Date;
 
+import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
-import javax.swing.DefaultListCellRenderer;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTable;
-import javax.swing.Timer;
 import javax.swing.SpinnerDateModel;
+import javax.swing.Timer;
 import javax.swing.table.DefaultTableModel;
 
 import com.cash_shop.common.StyleManager;
 import com.cash_shop.customer.Customer;
 import com.cash_shop.customer.CustomerDAO;
 import com.cash_shop.employee.Employee;
-import com.cash_shop.employee.EmployeeDAO;
 import com.cash_shop.employee.Employee.Role;
+import com.cash_shop.employee.EmployeeDAO;
 import com.cash_shop.user.AccessService;
 import com.cash_shop.user.AccessService.Module;
 
+/**
+ * Swing window listing past sales with filters on date, customer and cashier (administrators and accountants
+ * only).
+ */
 public class SaleHistoryView extends JFrame {
     private final SaleDAO saleDAO = new SaleDAO();
     private final DefaultTableModel tableModel = StyleManager.createReadOnlyModel(
-            "Sale #", "Customer", "Cashier", "Amount (USD)");
+            "Sale #", "Date", "Customer", "Cashier", "Amount (USD)");
     private final JCheckBox dateEnabled = new JCheckBox("Date");
     private final JSpinner dateFilter = new JSpinner(new SpinnerDateModel());
     private final JComboBox<FilterOption> customerFilter = new JComboBox<>();
@@ -44,6 +46,7 @@ public class SaleHistoryView extends JFrame {
     private boolean loadingFilters;
     private final Timer refreshTimer = new Timer(5000, event -> refreshSharedData());
 
+    /** Checks the user's role, then builds the window and starts the 5-second refresh. */
     public SaleHistoryView(Role role) {
         if (!new AccessService().canAccess(role, Module.SALES_HISTORY)) {
             throw new SecurityException("Only administrators and accountants can view sales history.");
@@ -83,7 +86,8 @@ public class SaleHistoryView extends JFrame {
             }
         });
 
-        JPanel filters = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JPanel filters = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT));
+        filters.setOpaque(false);
         filters.add(dateEnabled);
         filters.add(dateFilter);
         filters.add(new javax.swing.JLabel("Customer:"));
@@ -93,17 +97,23 @@ public class SaleHistoryView extends JFrame {
         filters.add(refresh);
         filters.add(reset);
         filters.add(close);
+        StyleManager.styleButton(refresh);
+        StyleManager.styleButton(reset);
+        StyleManager.styleButton(close);
 
+        JTable table = StyleManager.createTable(tableModel);
         JPanel page = StyleManager.createPage();
         JPanel heading = new JPanel(new BorderLayout(0, 8));
+        heading.setOpaque(false);
         heading.add(StyleManager.createTitle("Sales History"), BorderLayout.NORTH);
         heading.add(filters, BorderLayout.CENTER);
         page.add(heading, BorderLayout.NORTH);
-        page.add(new JScrollPane(new JTable(tableModel)), BorderLayout.CENTER);
+        page.add(StyleManager.createScrollPane(table), BorderLayout.CENTER);
         setContentPane(page);
         refreshSales();
         refreshTimer.start();
         addWindowListener(new WindowAdapter() {
+            // Stop the periodic refresh once the window is closed.
             @Override
             public void windowClosed(WindowEvent event) {
                 refreshTimer.stop();
@@ -111,6 +121,9 @@ public class SaleHistoryView extends JFrame {
         });
     }
 
+    /**
+     * Reloads the sales table using the currently selected filter values.
+     */
     private void refreshSales() {
         try {
             tableModel.setRowCount(0);
@@ -132,10 +145,14 @@ public class SaleHistoryView extends JFrame {
         }
     }
 
+    /**
+     * Populates the customer and cashier filters used by the sales history form.
+     */
     private void loadFilters() {
         loadFilters(true);
     }
 
+    /** Fills the customer and cashier filters. */
     private void loadFilters(boolean showError) {
         FilterOption previousCustomer = (FilterOption) customerFilter.getSelectedItem();
         FilterOption previousCashier = (FilterOption) cashierFilter.getSelectedItem();
@@ -168,6 +185,7 @@ public class SaleHistoryView extends JFrame {
         loadingFilters = false;
     }
 
+    /** Re-selects the previously chosen filter option after the list was rebuilt. */
     private void restoreSelection(JComboBox<FilterOption> filter, FilterOption previous) {
         if (previous == null) {
             return;
@@ -181,11 +199,15 @@ public class SaleHistoryView extends JFrame {
         }
     }
 
+    /** Periodic refresh of the filters and of the sales table. */
     private void refreshSharedData() {
         loadFilters(false);
         refreshSales();
     }
 
+    /**
+     * Resets all filters and redraws the table with the default unfiltered view.
+     */
     private void clearFilters() {
         dateEnabled.setSelected(false);
         dateFilter.setEnabled(false);
@@ -194,6 +216,7 @@ public class SaleHistoryView extends JFrame {
         refreshSales();
     }
 
+    /** Item of a filter combo box: an optional value (null means "all") and the label to display. */
     private record FilterOption(String value, String label) {
         @Override
         public String toString() {

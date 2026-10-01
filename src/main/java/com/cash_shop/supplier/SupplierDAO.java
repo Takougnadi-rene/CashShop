@@ -14,8 +14,16 @@ import com.cash_shop.common.DBConnection;
 import com.cash_shop.employee.Employee.Role;
 import com.cash_shop.product.Product;
 
+/**
+ * Data access object for suppliers and supplier orders. It also enforces who may do what: managers create,
+ * edit and deliver orders, counter staff approve or refuse them. Multi-step changes run in transactions.
+ */
 public class SupplierDAO {
 
+    /**
+     * Creates (or upgrades) the supplier tables when needed and inserts the default suppliers if the table is
+     * empty.
+     */
     public void initializeSchema() {
         String createSuppliers = "CREATE TABLE IF NOT EXISTS suppliers ("
                 + "code INT PRIMARY KEY, supplier_name VARCHAR(150) NOT NULL, "
@@ -25,28 +33,30 @@ public class SupplierDAO {
                 + "supplier_code INT NULL, order_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, "
                 + "status VARCHAR(20) NOT NULL DEFAULT 'PENDING', total_amount DECIMAL(14,2) NOT NULL DEFAULT 0, "
                 + "CONSTRAINT fk_supplier_order_supplier FOREIGN KEY (supplier_code) "
-                + "REFERENCES suppliers(code)) ENGINE=InnoDB";
+                + "REFERENCES suppliers(code) ON DELETE SET NULL) ENGINE=InnoDB";
         String createOrderLines = "CREATE TABLE IF NOT EXISTS supplier_order_lines ("
                 + "order_number INT NOT NULL, reference INT NOT NULL, quantity INT NOT NULL, "
                 + "unit_purchase_price DECIMAL(14,2) NOT NULL, PRIMARY KEY (order_number, reference), "
                 + "CONSTRAINT fk_supplier_line_order FOREIGN KEY (order_number) "
-                + "REFERENCES supplier_orders(order_number), "
+                + "REFERENCES supplier_orders(order_number) ON DELETE CASCADE, "
                 + "CONSTRAINT fk_supplier_line_product FOREIGN KEY (reference) "
                 + "REFERENCES products(reference)) ENGINE=InnoDB";
         try (Connection connection = DBConnection.getConnection(); Statement statement = connection.createStatement()) {
-            statement.executeUpdate(createSuppliers);
-            statement.executeUpdate(createOrders);
-            ensureColumn(connection, "supplier_orders", "supplier_code", "INT NULL");
-            ensureColumn(connection, "supplier_orders", "total_amount", "DECIMAL(14,2) NOT NULL DEFAULT 0");
-            statement.executeUpdate("ALTER TABLE supplier_orders MODIFY status "
-                    + "VARCHAR(20) NOT NULL DEFAULT 'PENDING'");
-            statement.executeUpdate(createOrderLines);
+            try { statement.executeUpdate(createSuppliers); } catch (SQLException ignored) {}
+            try { statement.executeUpdate(createOrders); } catch (SQLException ignored) {}
+            try { ensureColumn(connection, "supplier_orders", "supplier_code", "INT NULL"); } catch (SQLException ignored) {}
+            try { ensureColumn(connection, "supplier_orders", "total_amount", "DECIMAL(14,2) NOT NULL DEFAULT 0"); } catch (SQLException ignored) {}
+            try {
+                statement.executeUpdate("ALTER TABLE supplier_orders MODIFY status VARCHAR(20) NOT NULL DEFAULT 'PENDING'");
+            } catch (SQLException ignored) {}
+            try { statement.executeUpdate(createOrderLines); } catch (SQLException ignored) {}
             seedInitialSuppliers(connection);
         } catch (SQLException exception) {
             throw databaseError(exception);
         }
     }
 
+    /** Adds a column to a table if it does not exist yet. */
     private void ensureColumn(Connection connection, String table, String column, String definition)
             throws SQLException {
         String lookup = "SELECT COUNT(*) FROM information_schema.columns "
@@ -65,6 +75,7 @@ public class SupplierDAO {
         }
     }
 
+    /** Inserts three sample suppliers when there is none. */
     private void seedInitialSuppliers(Connection connection) throws SQLException {
         try (Statement statement = connection.createStatement();
                 ResultSet results = statement.executeQuery("SELECT COUNT(*) FROM suppliers")) {
@@ -91,6 +102,7 @@ public class SupplierDAO {
         }
     }
     
+    /** Returns all suppliers ordered by name. */
     public List<Supplier> getSuppliers() {
         String sql = "SELECT code, supplier_name, telephone, address FROM suppliers ORDER BY supplier_name";
         List<Supplier> suppliers = new ArrayList<>();
@@ -107,6 +119,7 @@ public class SupplierDAO {
         return suppliers;
     }
 
+    /** Inserts a supplier. */
     public void addSupplier(Supplier supplier) {
         String sql = "INSERT INTO suppliers (code, supplier_name, telephone, address) VALUES (?, ?, ?, ?)";
         try (Connection connection = DBConnection.getConnection();
@@ -121,6 +134,7 @@ public class SupplierDAO {
         }
     }
 
+    /** Deletes a supplier; refused when it still has orders. */
     public void deleteSupplier(int supplierCode) {
         String sql = "DELETE FROM suppliers WHERE code = ?";
         try (Connection connection = DBConnection.getConnection();
@@ -137,42 +151,63 @@ public class SupplierDAO {
         }
     }
 
+    /** Returns the orders of every supplier. */
+    public List<SupplierOrder> getAllOrders() {
+        return getOrders(0);
+    }
+
+    /** Returns the orders of one supplier (or of all suppliers when the code is 0), newest first. */
     public List<SupplierOrder> getOrders(int supplierCode) {
-        String sql = "SELECT o.order_number, o.order_date, o.supplier_code, s.supplier_name, "
+        String sql = "SELECT o.order_number, o.order_date, o.supplier_code, "
+                + "COALESCE(s.supplier_name, 'No supplier') AS supplier_name, "
                 + "o.total_amount, o.status FROM supplier_orders o "
-            + "JOIN suppliers s ON s.code = o.supplier_code "
-                + "WHERE o.supplier_code = ? ORDER BY o.order_date DESC, o.order_number DESC";
+                + "LEFT JOIN suppliers s ON s.code = o.supplier_code "
+                + (supplierCode > 0 ? "WHERE o.supplier_code = ? " : "")
+                + "ORDER BY o.order_date DESC, o.order_number DESC";
         List<SupplierOrder> orders = new ArrayList<>();
         try (Connection connection = DBConnection.getConnection();
                 PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setInt(1, supplierCode);
+            if (supplierCode > 0) {
+                statement.setInt(1, supplierCode);
+            }
             try (ResultSet results = statement.executeQuery()) {
                 while (results.next()) {
                     Timestamp date = results.getTimestamp("order_date");
+                    BigDecimal totalAmount = results.getBigDecimal("total_amount");
+                    if (totalAmount == null) {
+                        totalAmount = BigDecimal.ZERO;
+                    }
                     orders.add(new SupplierOrder(results.getInt("order_number"), date,
                             results.getInt("supplier_code"), results.getString("supplier_name"),
-                            results.getBigDecimal("total_amount"),
+                            totalAmount,
                             parseStatus(results.getString("status"))));
                 }
             }
         } catch (SQLException | IllegalArgumentException exception) {
-            throw new IllegalStateException("Unable to load supplier orders.", exception);
+            throw new IllegalStateException("Unable to load supplier orders: " + exception.getMessage(), exception);
         }
         return orders;
     }
 
+    /**
+     * Returns the lines of an order as products (stock quantity = ordered quantity, purchase price = unit
+     * price).
+     */
     public List<Product> getOrderLines(int orderNumber) {
-        String sql = "SELECT l.reference, p.designation, l.quantity, l.unit_purchase_price "
-                + "FROM supplier_order_lines l JOIN products p ON p.reference = l.reference "
-                + "WHERE l.order_number = ? ORDER BY p.designation";
+        String sql = "SELECT l.reference, COALESCE(p.designation, CONCAT('Ref #', l.reference)) AS designation, "
+                + "l.quantity, l.unit_purchase_price "
+                + "FROM supplier_order_lines l LEFT JOIN products p ON p.reference = l.reference "
+                + "WHERE l.order_number = ? ORDER BY designation";
         List<Product> lines = new ArrayList<>();
         try (Connection connection = DBConnection.getConnection();
                 PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, orderNumber);
             try (ResultSet results = statement.executeQuery()) {
                 while (results.next()) {
-                        lines.add(new Product(results.getInt("reference"), results.getString("designation"),
-                            results.getBigDecimal("unit_purchase_price").doubleValue(), 0,
+                    BigDecimal unitPrice = results.getBigDecimal("unit_purchase_price");
+                    double price = unitPrice != null ? unitPrice.doubleValue() : 0.0;
+                    lines.add(new Product(results.getInt("reference"), results.getString("designation"),
+                            price, 0,
                             results.getInt("quantity")));
                 }
             }
@@ -182,24 +217,81 @@ public class SupplierDAO {
         return lines;
     }
 
-    public int createOrder(int supplierCode, Role actor) {
+    /**
+     * Creates a PENDING order with its lines in one transaction (manager only) and returns the order number.
+     */
+    public int createOrder(int supplierCode, List<Product> items, Role actor) {
         requireOrderCreator(actor);
-        String sql = "INSERT INTO supplier_orders (supplier_code) VALUES (?)";
-        try (Connection connection = DBConnection.getConnection();
-                PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            statement.setInt(1, supplierCode);
-            statement.executeUpdate();
-            try (ResultSet keys = statement.getGeneratedKeys()) {
-                if (keys.next()) {
-                    return keys.getInt(1);
-                }
+        if (items == null || items.isEmpty()) {
+            throw new IllegalArgumentException("An order must contain at least one product.");
+        }
+        for (Product item : items) {
+            if (item.getStockQuantity() <= 0) {
+                throw new IllegalArgumentException("Quantity must be greater than zero for product: " + item.getDesignation());
             }
-            throw new IllegalStateException("Unable to create supplier order.");
+        }
+        try (Connection connection = DBConnection.getConnection()) {
+            // The order header and all its lines are saved in one transaction.
+            connection.setAutoCommit(false);
+            try {
+                int orderNumber;
+                String insertOrder = "INSERT INTO supplier_orders (supplier_code, status) VALUES (?, 'PENDING')";
+                try (PreparedStatement statement = connection.prepareStatement(
+                        insertOrder, Statement.RETURN_GENERATED_KEYS)) {
+                    statement.setInt(1, supplierCode);
+                    statement.executeUpdate();
+                    try (ResultSet keys = statement.getGeneratedKeys()) {
+                        if (!keys.next()) {
+                            throw new IllegalStateException("Unable to create supplier order.");
+                        }
+                        orderNumber = keys.getInt(1);
+                    }
+                }
+
+                // When a line has no price yet, use the current purchase price of the product.
+                String insertLine = "INSERT INTO supplier_order_lines "
+                        + "(order_number, reference, quantity, unit_purchase_price) VALUES (?, ?, ?, ?) "
+                        + "ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity)";
+                try (PreparedStatement statement = connection.prepareStatement(insertLine)) {
+                    for (Product item : items) {
+                        BigDecimal purchasePrice = BigDecimal.valueOf(item.getPurchasePrice());
+                        if (purchasePrice.compareTo(BigDecimal.ZERO) <= 0) {
+                            purchasePrice = getPurchasePrice(connection, item.getReference());
+                        }
+                        statement.setInt(1, orderNumber);
+                        statement.setInt(2, item.getReference());
+                        statement.setInt(3, item.getStockQuantity());
+                        statement.setBigDecimal(4, purchasePrice);
+                        statement.addBatch();
+                    }
+                    statement.executeBatch();
+                }
+                updateOrderTotal(connection, orderNumber);
+                connection.commit();
+                return orderNumber;
+            } catch (SQLException | RuntimeException exception) {
+                rollback(connection, exception);
+                throw exception;
+            }
         } catch (SQLException exception) {
             throw databaseError(exception);
         }
     }
 
+    /** Creates an order containing a single product. */
+    public int createOrder(int supplierCode, int productReference, int quantity, Role actor) {
+        requireOrderCreator(actor);
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity must be greater than zero.");
+        }
+        Product product = new Product(productReference, "", 0, 0, quantity);
+        return createOrder(supplierCode, List.of(product), actor);
+    }
+
+    /**
+     * Adds a line to a pending order (manager only); the quantity is added if the product is already in the
+     * order.
+     */
     public void addOrderLine(int orderNumber, int productReference, int quantity, Role actor) {
         requireOrderCreator(actor);
         if (quantity <= 0) {
@@ -233,6 +325,7 @@ public class SupplierDAO {
         }
     }
 
+    /** Removes a line from a pending order (manager only). */
     public void removeOrderLine(int orderNumber, int productReference, Role actor) {
         requireOrderCreator(actor);
         try (Connection connection = DBConnection.getConnection()) {
@@ -260,6 +353,7 @@ public class SupplierDAO {
         }
     }
 
+    /** Approves/refuses (counter) or delivers (manager) an order; an order can never go back to pending. */
     public void updateOrderStatus(int orderNumber, SupplierOrder.OrderStatus status, Role actor) {
         if (status == null) {
             throw new IllegalArgumentException("Order status is required.");
@@ -277,6 +371,7 @@ public class SupplierDAO {
         throw new IllegalArgumentException("An order cannot be reset to pending.");
     }
 
+    /** Approves or refuses a pending order. */
     private void reviewOrder(int orderNumber, SupplierOrder.OrderStatus status) {
         String sql = "UPDATE supplier_orders SET status = ? WHERE order_number = ? AND status = 'PENDING'";
         try (Connection connection = DBConnection.getConnection();
@@ -291,10 +386,12 @@ public class SupplierDAO {
         }
     }
 
+    /** Marks an approved order as delivered and adds its quantities to the stock, in one transaction. */
     private void markOrderDelivered(int orderNumber) {
         try (Connection connection = DBConnection.getConnection()) {
             connection.setAutoCommit(false);
             try {
+                // Lock the order and make sure it is approved before touching the stock.
                 requireOrderStatus(connection, orderNumber, SupplierOrder.OrderStatus.APPROUVED);
                 List<Product> lines = getOrderLinesForUpdate(connection, orderNumber);
                 if (lines.isEmpty()) {
@@ -329,6 +426,7 @@ public class SupplierDAO {
         }
     }
 
+    /** Rolls the transaction back, keeping any rollback failure as suppressed. */
     private void rollback(Connection connection, Exception cause) {
         try {
             connection.rollback();
@@ -337,10 +435,12 @@ public class SupplierDAO {
         }
     }
 
+    /** Fails unless the order is pending. */
     private void requirePendingOrder(Connection connection, int orderNumber) throws SQLException {
         requireOrderStatus(connection, orderNumber, SupplierOrder.OrderStatus.PENDING);
     }
 
+    /** Locks the order row and fails unless it has the expected status. */
     private void requireOrderStatus(Connection connection, int orderNumber, SupplierOrder.OrderStatus expected)
             throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(
@@ -354,27 +454,44 @@ public class SupplierDAO {
         }
     }
 
+    /** Only managers may create, edit or deliver orders. */
     private void requireOrderCreator(Role actor) {
         if (actor != Role.MANAGER) {
-            throw new SecurityException("Only a manager can create or edit supplier orders.");
+            throw new SecurityException("Only a manager can create, edit, or deliver supplier orders.");
         }
     }
 
+    /** Only counter staff may approve or refuse orders. */
     private void requireOrderReviewer(Role actor) {
         if (actor != Role.COUNTER) {
             throw new SecurityException("Only a counter can approve or refuse supplier orders.");
         }
     }
 
+    /**
+     * Converts a stored status text to an OrderStatus, accepting legacy spellings; unknown values are treated
+     * as PENDING.
+     */
     private SupplierOrder.OrderStatus parseStatus(String status) {
+        if (status == null || status.trim().isEmpty()) {
+            return SupplierOrder.OrderStatus.PENDING;
+        }
         return switch (status.trim().toUpperCase()) {
             case "APPROVED", "APPROUVED" -> SupplierOrder.OrderStatus.APPROUVED;
             case "REFUSED", "REJECTED", "DENIDED", "CANCELLED" -> SupplierOrder.OrderStatus.DENIDED;
             case "COMPLETED", "DELIVERED" -> SupplierOrder.OrderStatus.DELIVERED;
-            default -> SupplierOrder.OrderStatus.valueOf(status.trim().toUpperCase());
+            case "PENDING" -> SupplierOrder.OrderStatus.PENDING;
+            default -> {
+                try {
+                    yield SupplierOrder.OrderStatus.valueOf(status.trim().toUpperCase());
+                } catch (IllegalArgumentException ignored) {
+                    yield SupplierOrder.OrderStatus.PENDING;
+                }
+            }
         };
     }
 
+    /** Reads the current purchase price of a product. */
     private BigDecimal getPurchasePrice(Connection connection, int productReference) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(
                 "SELECT purchase_price FROM products WHERE reference = ?")) {
@@ -388,6 +505,7 @@ public class SupplierDAO {
         }
     }
 
+    /** Reads and locks the lines of an order. */
     private List<Product> getOrderLinesForUpdate(Connection connection, int orderNumber)
             throws SQLException {
         String sql = "SELECT reference, quantity, unit_purchase_price FROM supplier_order_lines "
@@ -406,6 +524,7 @@ public class SupplierDAO {
         return lines;
     }
 
+    /** Recomputes the total amount of an order from its lines. */
     private void updateOrderTotal(Connection connection, int orderNumber) throws SQLException {
         String sql = "UPDATE supplier_orders SET total_amount = (SELECT COALESCE(SUM(quantity * unit_purchase_price), 0) "
                 + "FROM supplier_order_lines WHERE order_number = ?) WHERE order_number = ?";
@@ -416,6 +535,7 @@ public class SupplierDAO {
         }
     }
 
+    /** Wraps an SQL error in an unchecked exception. */
     private IllegalStateException databaseError(SQLException exception) {
         return new IllegalStateException("Unable to access supplier data: " + exception.getMessage(), exception);
     }

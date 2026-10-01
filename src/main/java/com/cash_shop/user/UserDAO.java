@@ -11,7 +11,9 @@ import java.util.Locale;
 import com.cash_shop.common.DBConnection;
 import com.cash_shop.employee.Employee.Role;
 
+/** Data access object for application users (tables {@code users} and {@code users_role}). */
 class UserDAO {
+    /** Returns all users (login and e-mail only). */
     List<User> findAll() {
         String sql = "SELECT login, email FROM users_role ORDER BY login";
         List<User> users = new ArrayList<>();
@@ -27,6 +29,7 @@ class UserDAO {
         return users;
     }
 
+    /** Sets a new password for a user (used by administrators). */
     boolean updatePassword(String username, String password) {
         String sql = "UPDATE users SET password_user = ? WHERE login = ?";
         try (Connection connection = DBConnection.getConnection();
@@ -39,6 +42,7 @@ class UserDAO {
         }
     }
 
+    /** Changes a password only when the current one matches. */
     boolean changePassword(String username, String currentPassword, String newPassword) {
         String sql = "UPDATE users SET password_user = ? WHERE login = ? AND password_user = ?";
         try (Connection connection = DBConnection.getConnection();
@@ -52,6 +56,7 @@ class UserDAO {
         }
     }
 
+    /** Returns the user with this login, or null. */
     User findByUsername(String username) {
         String sql = "SELECT login, password_user, email FROM users_role WHERE login = ?";
         try (Connection c = DBConnection.getConnection();
@@ -63,11 +68,15 @@ class UserDAO {
                 }
             }
         } catch (SQLException e) {
-            throw new IllegalStateException("Impossible d'acceder a la base de donnees.", e);
+            throw new IllegalStateException("Unable to access the database.", e);
         }
         return null;
     }
 
+    /**
+     * Checks login and password and returns the user with its role and employee data, or null when the
+     * credentials are wrong.
+     */
     User authenticate(String username, String password) {
         String sql = "SELECT login, password_user, email, role "
                 + "FROM users_role WHERE login = ? AND password_user = ?";
@@ -79,6 +88,7 @@ class UserDAO {
                 if (results.next()) {
                     String roleName = results.getString("role");
                     try {
+                        // The role stored in the database must match one of the Role constants.
                         Role role = Role.valueOf(roleName.trim().toUpperCase(Locale.ROOT));
                         String email = results.getString("email");
                         return new User(results.getString("login"), results.getString("password_user"),
@@ -96,6 +106,7 @@ class UserDAO {
         return null;
     }
 
+    /** Returns the employee's full name from his e-mail (the e-mail itself when not found). */
     private String findEmployeeName(Connection connection, String email) {
         String sql = "SELECT CONCAT(first_name, ' ', last_name) AS employee_name "
                 + "FROM employees WHERE LOWER(TRIM(email)) = LOWER(TRIM(?)) LIMIT 1";
@@ -109,6 +120,7 @@ class UserDAO {
         }
     }
 
+    /** Returns the employee's matricule from his e-mail (empty when not found). */
     private String findEmployeeMatricule(Connection connection, String email) {
         String sql = "SELECT matricule FROM employees "
                 + "WHERE LOWER(TRIM(email)) = LOWER(TRIM(?)) LIMIT 1";
@@ -122,6 +134,7 @@ class UserDAO {
         }
     }
 
+    /** Creates a user account for an existing employee (matched by e-mail). */
     boolean insert(String username, String password, String email) {
         String sql = "INSERT INTO users (login, password_user, email) "
             + "SELECT ?, ?, e.email FROM employees e "
@@ -133,7 +146,7 @@ class UserDAO {
             ps.setString(3, email);
             return ps.executeUpdate() == 1;
         } catch (SQLException e) {
-            throw new IllegalStateException("Impossible to register.", e);
+            throw new IllegalStateException("Unable to register the user.", e);
         }
     }
 }

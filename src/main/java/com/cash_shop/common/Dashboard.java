@@ -30,7 +30,6 @@ import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.SwingUtilities;
 
 import com.cash_shop.employee.Employee.Role;
 import com.cash_shop.employee.EmployeeView;
@@ -45,12 +44,17 @@ import com.cash_shop.sale.SaleHistoryView;
 import com.cash_shop.user.AccessService;
 import com.cash_shop.user.AccessService.Module;
 
+/**
+ * Dashboard with key indicators: revenue, number of sales, product references and alerts (expired products,
+ * low stock).
+ */
 public class Dashboard extends JFrame {
+    // Stock at or below this quantity counts as low stock.
     private static final int LOW_STOCK_LIMIT = 5;
     private final Role role;
     private final AccessService accessService = new AccessService();
 
-    // Labels des KPI
+    // KPI labels
     private final JLabel revenueValueLabel      = kpiLabel("--");
     private final JLabel salesCountValueLabel   = kpiLabel("--");
     private final JLabel productCountValueLabel = kpiLabel("--");
@@ -58,9 +62,10 @@ public class Dashboard extends JFrame {
     private final JLabel expiredCountLabel      = alertLabel("--");
     private final JLabel lowStockCountLabel     = alertLabel("--");
 
+    /** Builds the window and loads the figures. */
     public Dashboard(Role role) {
         this.role = role;
-        setTitle("Supermarket Manager – Dashboard");
+        setTitle("Supermarket Manager \u2013 Dashboard");
         setSize(Toolkit.getDefaultToolkit().getScreenSize());
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -68,8 +73,9 @@ public class Dashboard extends JFrame {
         refreshDashboard();
     }
 
-    // ── Construction ─────────────────────────────────────────────────────────
+    // ---- Construction ----
 
+    /** Assembles header, content and footer. */
     private void buildUI() {
         JPanel root = new JPanel(new BorderLayout(0, 0));
         root.setBackground(StyleManager.BG_SURFACE);
@@ -81,6 +87,7 @@ public class Dashboard extends JFrame {
         setContentPane(root);
     }
 
+    /** Builds the gradient header. */
     private JPanel buildHeader() {
         JPanel header = new JPanel(new BorderLayout()) {
             @Override protected void paintComponent(Graphics g) {
@@ -111,6 +118,7 @@ public class Dashboard extends JFrame {
         return header;
     }
 
+    /** Builds the 2x2 grid of indicator cards. */
     private JPanel buildContent() {
         JPanel content = new JPanel(new GridLayout(2, 2, 16, 16));
         content.setBackground(StyleManager.BG_SURFACE);
@@ -124,6 +132,7 @@ public class Dashboard extends JFrame {
         return content;
     }
 
+    /** Builds the bottom buttons (shortcuts depend on the role). */
     private JPanel buildFooter() {
         JPanel footer = new JPanel(new BorderLayout());
         footer.setBackground(StyleManager.BG_SURFACE);
@@ -155,8 +164,9 @@ public class Dashboard extends JFrame {
         return footer;
     }
 
-    // ── Cartes KPI ───────────────────────────────────────────────────────────
+    // ---- KPI cards ----
 
+    /** Creates an indicator card. */
     private JPanel buildKpiCard(String caption, JLabel valueLabel, Color accent) {
         JPanel card = new JPanel(new BorderLayout(0, 6)) {
             @Override protected void paintComponent(Graphics g) {
@@ -191,6 +201,7 @@ public class Dashboard extends JFrame {
         return card;
     }
 
+    /** Creates the alerts card (expired products and low stock). */
     private JPanel buildAlertsCard() {
         JPanel card = new JPanel(new BorderLayout(0, 10)) {
             @Override protected void paintComponent(Graphics g) {
@@ -207,6 +218,7 @@ public class Dashboard extends JFrame {
                 g2.dispose();
             }
         };
+        
         card.setOpaque(false);
         card.setBorder(BorderFactory.createEmptyBorder(18, 18, 18, 18));
 
@@ -230,6 +242,7 @@ public class Dashboard extends JFrame {
         return card;
     }
 
+    /** Adds a row to the alerts card: caption, value and a shortcut button. */
     private void addAlertRow(JPanel panel, int row, String caption, JLabel value,
             String btnText, Runnable action) {
         GridBagConstraints c = new GridBagConstraints();
@@ -250,20 +263,23 @@ public class Dashboard extends JFrame {
         panel.add(buildSmallButton(btnText, action), c);
     }
 
-    // ── Utilitaires visuels ──────────────────────────────────────────────────
+    // ---- Visual helpers ----
 
+    /** Creates a large label for an indicator value. */
     private static JLabel kpiLabel(String text) {
         JLabel l = new JLabel(text);
         l.setFont(new Font("Segoe UI", Font.BOLD, 24));
         return l;
     }
 
+    /** Creates a label for an alert value. */
     private static JLabel alertLabel(String text) {
         JLabel l = new JLabel(text);
         l.setFont(new Font("Segoe UI", Font.BOLD, 14));
         return l;
     }
 
+    /** Creates a small shortcut button. */
     private JButton buildSmallButton(String text, Runnable action) {
         JButton btn = new JButton(text);
         btn.setFont(new Font("Segoe UI", Font.BOLD, 11));
@@ -287,6 +303,7 @@ public class Dashboard extends JFrame {
         return btn;
     }
 
+    /** Creates a footer button; the dark-red background marks the "Close" button. */
     private JButton buildFooterButton(String text, Color bg, Runnable action) {
         boolean isDanger = bg.equals(new Color(0x3D, 0x1A, 0x22));
         Color fg = isDanger ? StyleManager.DANGER : StyleManager.TEXT_PRIMARY;
@@ -309,8 +326,9 @@ public class Dashboard extends JFrame {
         return btn;
     }
 
-    // ── Données ──────────────────────────────────────────────────────────────
+    // ---- Data ----
 
+    /** Loads all indicators; a failing query only shows "Unavailable" for its own indicator. */
     private void refreshDashboard() {
         try {
             List<Product> products = new ProductDAO().getAllProducts();
@@ -348,6 +366,10 @@ public class Dashboard extends JFrame {
         }
     }
 
+    /**
+     * A fresh product is expired when its ISO expiration date is before today (invalid or missing dates are
+     * ignored).
+     */
     private boolean isExpired(FreshProduct product) {
         try {
             return LocalDate.parse(product.getExpirationDate()).isBefore(LocalDate.now());
@@ -356,20 +378,18 @@ public class Dashboard extends JFrame {
         }
     }
 
+    /** Formats the current date and time. */
     private String currentDate() {
         return new SimpleDateFormat("dd/MM/yyyy  |  HH:mm").format(new Date());
     }
 
+    /** Shows the window if it is not null. */
     private void openWindow(JFrame window) {
         if (window != null) window.setVisible(true);
     }
 
+    /** Tells whether the current role may open the module. */
     private boolean canAccess(Module module) {
         return accessService.canAccess(role, module);
-    }
-
-    public static void main(String[] args) {
-        StyleManager.applyLookAndFeel();
-        SwingUtilities.invokeLater(() -> new com.cash_shop.user.UserView().setVisible(true));
     }
 }

@@ -7,14 +7,14 @@ import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.Toolkit;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
@@ -27,12 +27,11 @@ import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
-import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTable;
-import javax.swing.Timer;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
+import javax.swing.Timer;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
@@ -48,6 +47,11 @@ import com.cash_shop.product.Product;
 import com.cash_shop.product.ProductDAO;
 import com.cash_shop.user.AccountManagementView;
 
+/**
+ * Cash register window: the cashier picks a customer (or walk-in), adds products to a basket with stock
+ * checks, chooses a payment method and completes the sale, which prints a receipt. It also declares the
+ * register as active while it is open.
+ */
 public class SaleView extends JFrame {
     private static final Logger LOGGER = Logger.getLogger(SaleView.class.getName());
     private final List<Product> catalog = new ArrayList<>();
@@ -55,8 +59,10 @@ public class SaleView extends JFrame {
     private final String accountUsername;
     private final RegisterSessionDAO registerSessionDAO = new RegisterSessionDAO();
     private String registerSessionId;
+    // Heartbeat that keeps this cash register marked as active.
     private Timer registerHeartbeat;
     private final Timer dataRefreshTimer = new Timer(5000, event -> refreshSharedCatalog());
+    // The basket: one entry per product, with the requested quantity.
     private final List<CartItem> basket = new ArrayList<>();
     private final JComboBox<Customer> customerCombo = new JComboBox<>();
     private final JComboBox<Product> productCombo = new JComboBox<>();
@@ -69,14 +75,17 @@ public class SaleView extends JFrame {
             "Product", "Qty", "Unit Price ($)", "Subtotal ($)");
     private final JTable basketTable = StyleManager.createTable(basketModel);
 
+    /** Register window without a known cashier. */
     public SaleView() {
         this(null);
     }
 
+    /** Register window for the cashier with this e-mail. */
     public SaleView(String cashierEmail) {
         this(cashierEmail, null);
     }
 
+    /** Register window for a cashier, with the "Manage my account" button. */
     public SaleView(String cashierEmail, String accountUsername) {
         cashier = findCashier(cashierEmail);
         this.accountUsername = accountUsername;
@@ -92,6 +101,7 @@ public class SaleView extends JFrame {
         startRegisterSession();
         dataRefreshTimer.start();
         addWindowListener(new WindowAdapter() {
+            // Stop the periodic refresh once the window is closed.
             @Override
             public void windowClosed(WindowEvent event) {
                 dataRefreshTimer.stop();
@@ -99,12 +109,18 @@ public class SaleView extends JFrame {
         });
     }
 
+    /**
+     * Periodic refresh: reloads the catalog (only while the basket is empty, so prices and stock do not change
+     * under the cashier) and the customer list.
+     */
     private void refreshSharedCatalog() {
         if (basket.isEmpty()) {
             try {
+                Product selectedProduct = (Product) productCombo.getSelectedItem();
                 catalog.clear();
                 catalog.addAll(new ProductDAO().getAllProducts());
                 refreshProducts();
+                restoreProductSelection(selectedProduct);
             } catch (IllegalStateException exception) {
                 LOGGER.log(Level.FINE, "Unable to refresh the product catalog.", exception);
             }
@@ -125,6 +141,9 @@ public class SaleView extends JFrame {
         }
     }
 
+    /**
+     * Declares this register as active (cashiers only) and keeps it alive with a heartbeat every 10 seconds.
+     */
     private void startRegisterSession() {
         if (cashier == null || cashier.getRole() != Employee.Role.CASHIER) {
             return;
@@ -134,6 +153,7 @@ public class SaleView extends JFrame {
             registerHeartbeat = new Timer(10_000, event -> registerSessionDAO.heartbeat(registerSessionId));
             registerHeartbeat.start();
             addWindowListener(new WindowAdapter() {
+                // Stop the heartbeat and release the register session.
                 @Override
                 public void windowClosed(WindowEvent event) {
                     registerHeartbeat.stop();
@@ -146,6 +166,7 @@ public class SaleView extends JFrame {
         }
     }
 
+    /** Finds the employee whose e-mail matches the logged-in account. */
     private Employee findCashier(String email) {
         if (email == null || email.isBlank()) {
             return null;
@@ -162,6 +183,7 @@ public class SaleView extends JFrame {
         }
     }
 
+    /** Loads the product catalog. */
     private void loadCatalog() {
         try {
             catalog.addAll(new ProductDAO().getAllProducts());
@@ -171,6 +193,7 @@ public class SaleView extends JFrame {
         }
     }
 
+    /** Loads the customers (first entry null = walk-in) and sets up their renderer. */
     private void loadCustomers() {
         customerCombo.addItem(null);
         try {
@@ -182,6 +205,7 @@ public class SaleView extends JFrame {
                     JOptionPane.WARNING_MESSAGE);
         }
         customerCombo.setRenderer(new DefaultListCellRenderer() {
+            // Displays the customer name, or "Walk-in customer" for the empty entry.
             @Override
             public java.awt.Component getListCellRendererComponent(JList<?> list, Object value, int index,
                     boolean isSelected, boolean cellHasFocus) {
@@ -192,6 +216,7 @@ public class SaleView extends JFrame {
         });
     }
 
+    /** Builds the page: entry panel, basket, and the Complete / Cancel / Close buttons. */
     private void buildUI() {
         JButton validateButton = new JButton("Complete Sale");
         JButton cancelButton = new JButton("Cancel Sale");
@@ -216,8 +241,9 @@ public class SaleView extends JFrame {
         setContentPane(page);
     }
 
+    /** Builds the left panel: customer, product, quantity and payment method. */
     private JPanel buildEntryPanel() {
-        // Client, produit, quantité
+        // Customer, product and quantity
         JPanel entry = StyleManager.createForm("Customer and item");
         StyleManager.addRow(entry, 0, "Customer:", createCustomerControl());
         StyleManager.addRow(entry, 1, "Product:", productCombo);
@@ -233,7 +259,7 @@ public class SaleView extends JFrame {
         constraints.fill = GridBagConstraints.HORIZONTAL;
         entry.add(addButton, constraints);
 
-        // Mode de paiement
+        // Payment method
         ButtonGroup paymentGroup = new ButtonGroup();
         paymentGroup.add(cashRadio);
         paymentGroup.add(cardRadio);
@@ -253,6 +279,7 @@ public class SaleView extends JFrame {
         return left;
     }
 
+    /** Customer combo box with a "New" button. */
     private JPanel createCustomerControl() {
         JPanel control = new JPanel(new BorderLayout(6, 0));
         JButton newCustomerButton = new JButton("New");
@@ -262,6 +289,7 @@ public class SaleView extends JFrame {
         return control;
     }
 
+    /** Opens a dialog to register a new customer and selects it. */
     private void addCustomer() {
         JTextField idField = StyleManager.createField();
         idField.setText(Integer.toString(nextCustomerId()));
@@ -298,6 +326,7 @@ public class SaleView extends JFrame {
         }
     }
 
+    /** Proposes the next customer id (largest known id + 1). */
     private int nextCustomerId() {
         int largestId = 0;
         for (int index = 0; index < customerCombo.getItemCount(); index++) {
@@ -309,35 +338,40 @@ public class SaleView extends JFrame {
         return largestId + 1;
     }
 
+    /** Displays an error dialog about customers. */
     private void showCustomerError(String message) {
         JOptionPane.showMessageDialog(this, message, "Customer Error", JOptionPane.ERROR_MESSAGE);
     }
 
+    /** Builds the basket table with the "Remove" button and the total. */
     private JPanel buildBasketPanel() {
         JButton removeButton = new JButton("Remove selected item");
         removeButton.addActionListener(event -> removeSelectedItem());
+        StyleManager.styleButton(removeButton);
         JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        top.setOpaque(false);
         top.add(removeButton);
 
         JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        bottom.setOpaque(false);
         bottom.add(totalLabel);
 
         JPanel panel = new JPanel(new BorderLayout(0, 8));
-        panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createTitledBorder("Cart"),
-                BorderFactory.createEmptyBorder(4, 4, 4, 4)));
+        panel.setOpaque(false);
         panel.add(top, BorderLayout.NORTH);
-        panel.add(new JScrollPane(basketTable), BorderLayout.CENTER);
+        panel.add(StyleManager.createScrollPane(basketTable), BorderLayout.CENTER);
         panel.add(bottom, BorderLayout.SOUTH);
         return panel;
     }
 
+    /** Fills the product combo box from the catalog. */
     private void refreshProducts() {
         productCombo.removeAllItems();
         for (Product product : catalog) {
             productCombo.addItem(product);
         }
         productCombo.setRenderer(new DefaultListCellRenderer() {
+            // Displays the product designation with its selling price.
             @Override
             public java.awt.Component getListCellRendererComponent(JList<?> list, Object value, int index,
                     boolean isSelected, boolean cellHasFocus) {
@@ -350,6 +384,20 @@ public class SaleView extends JFrame {
         });
     }
 
+    /** Re-selects the previously selected product (matched by reference) after the combo box was rebuilt. */
+    private void restoreProductSelection(Product previous) {
+        if (previous == null) {
+            return;
+        }
+        for (int index = 0; index < productCombo.getItemCount(); index++) {
+            if (productCombo.getItemAt(index).getReference() == previous.getReference()) {
+                productCombo.setSelectedIndex(index);
+                return;
+            }
+        }
+    }
+
+    /** Adds the selected product to the basket, refusing quantities larger than the available stock. */
     private void addToBasket() {
         Product product = (Product) productCombo.getSelectedItem();
         if (product == null) {
@@ -377,6 +425,7 @@ public class SaleView extends JFrame {
         refreshBasket();
     }
 
+    /** Removes the selected basket line. */
     private void removeSelectedItem() {
         int selectedRow = basketTable.getSelectedRow();
         if (selectedRow < 0) {
@@ -386,6 +435,10 @@ public class SaleView extends JFrame {
         refreshBasket();
     }
 
+    /**
+     * Completes the sale: asks for the cash received (cash payments), saves everything in one transaction,
+     * updates local stock and shows the receipt.
+     */
     private void validateSale() {
         if (basket.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Add at least one item before completing the sale.",
@@ -393,6 +446,7 @@ public class SaleView extends JFrame {
             return;
         }
 
+        // For cash payments the cashier must enter the amount received.
         Double cashReceived = null;
         if (cashRadio.isSelected()) {
             cashReceived = requestCashReceived();
@@ -405,6 +459,7 @@ public class SaleView extends JFrame {
         Customer customer = (Customer) customerCombo.getSelectedItem();
         Payment.PaymentMode paymentMode = selectedPaymentMode();
         try {
+            // Save everything in one transaction (sale, payment, bill and stock).
             int billNumber = new SaleDAO().persistCompletedSale(sale, customer, paymentMode);
             for (CartItem item : basket) {
                 item.product.setStockQuantity(item.product.getStockQuantity() - item.quantity);
@@ -417,6 +472,7 @@ public class SaleView extends JFrame {
         }
     }
 
+    /** Converts the basket into a Sale (one product entry per unit). */
     private Sale createSaleFromBasket() {
         Sale sale = new Sale(0, LocalDateTime.now(), cashier);
         List<Product> soldProducts = new ArrayList<>();
@@ -429,6 +485,7 @@ public class SaleView extends JFrame {
         return sale;
     }
 
+    /** Returns the payment mode chosen with the radio buttons. */
     private Payment.PaymentMode selectedPaymentMode() {
         if (cardRadio.isSelected()) {
             return Payment.PaymentMode.CREDIT_CARD;
@@ -439,6 +496,7 @@ public class SaleView extends JFrame {
         return Payment.PaymentMode.CASH;
     }
 
+    /** Empties the basket after confirmation. */
     private void cancelSale() {
         if (!basket.isEmpty()) {
             int choice = JOptionPane.showConfirmDialog(this, "Cancel all items in the cart?",
@@ -450,11 +508,13 @@ public class SaleView extends JFrame {
         clearBasket();
     }
 
+    /** Removes every item from the basket. */
     private void clearBasket() {
         basket.clear();
         refreshBasket();
     }
 
+    /** Asks for the cash received until it covers the total due; returns null if cancelled. */
     private Double requestCashReceived() {
         JTextField amountField = StyleManager.createField();
         JLabel changeAmountLabel = new JLabel("Change: -- $");
@@ -478,6 +538,7 @@ public class SaleView extends JFrame {
         cashDialog.add(changeAmountLabel, constraints);
 
         amountField.getDocument().addDocumentListener(new DocumentListener() {
+            // Any change to the amount field recomputes the change shown.
             @Override
             public void insertUpdate(DocumentEvent event) {
                 refreshDialogChange(amountField, changeAmountLabel);
@@ -509,6 +570,7 @@ public class SaleView extends JFrame {
         }
     }
 
+    /** Shows the change to give back (green) or the amount still due (red). */
     private void refreshDialogChange(JTextField amountField, JLabel changeAmountLabel) {
         Double received = parseAmount(amountField.getText());
         if (received == null) {
@@ -523,6 +585,7 @@ public class SaleView extends JFrame {
         changeAmountLabel.setForeground(difference >= 0 ? StyleManager.SUCCESS : StyleManager.DANGER);
     }
 
+    /** Parses an amount (spaces and commas ignored); returns null when invalid or negative. */
     private Double parseAmount(String amount) {
         String normalized = amount.trim().replace(" ", "").replace(",", "");
         if (normalized.isEmpty()) {
@@ -536,10 +599,12 @@ public class SaleView extends JFrame {
         }
     }
 
+    /** Total of the basket. */
     private double currentTotal() {
         return basket.stream().mapToDouble(item -> item.product.getSellingPrice() * item.quantity).sum();
     }
 
+    /** Redraws the basket table and the total. */
     private void refreshBasket() {
         basketModel.setRowCount(0);
         double total = 0;
@@ -552,10 +617,11 @@ public class SaleView extends JFrame {
         totalLabel.setText("Total due: " + formatMoney(total));
     }
 
+    /** Formats an amount as whole dollars, e.g. "1200 $". */
     private String formatMoney(double amount) {
         return String.format("%.0f $", amount);
     }
-
+    /** A basket line: a product and the quantity requested. */
     private static final class CartItem {
         private final Product product;
         private int quantity;
@@ -564,10 +630,5 @@ public class SaleView extends JFrame {
             this.product = product;
             this.quantity = quantity;
         }
-    }
-
-    public static void main(String[] args) {
-        StyleManager.applyLookAndFeel();
-        javax.swing.SwingUtilities.invokeLater(() -> new SaleView().setVisible(true));
     }
 }

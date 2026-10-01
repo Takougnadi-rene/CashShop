@@ -10,10 +10,8 @@ import java.util.List;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
-import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.Timer;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -21,7 +19,12 @@ import javax.swing.table.DefaultTableModel;
 
 import com.cash_shop.common.StyleManager;
 
+/**
+ * Swing window to follow stock levels with LOW / MEDIUM / OK status, record stock in/out and list low-stock
+ * alerts.
+ */
 public class StockView extends JFrame {
+    // Stock at or below this quantity is considered LOW.
     private static final int MINIMUM_STOCK = 5;
 
     private final ProductDAO productDAO = new ProductDAO();
@@ -32,10 +35,12 @@ public class StockView extends JFrame {
     private final JTable table = StyleManager.createTable(tableModel);
     private final Timer refreshTimer = new Timer(5000, event -> refreshStock(false));
 
+    /** Editable window. */
     public StockView() {
         this(false);
     }
 
+    /** Window that can be opened read-only. */
     public StockView(boolean readOnly) {
         this.readOnly = readOnly;
         setTitle("Stock Management");
@@ -47,6 +52,7 @@ public class StockView extends JFrame {
         refreshStock();
         refreshTimer.start();
         addWindowListener(new WindowAdapter() {
+            // Stop the periodic refresh once the window is closed.
             @Override
             public void windowClosed(WindowEvent event) {
                 refreshTimer.stop();
@@ -54,9 +60,11 @@ public class StockView extends JFrame {
         });
     }
 
+    /** Builds the table (with a colored status column), the legend and the buttons. */
     private void buildUI() {
-        // Le statut du stock est la seule colonne colorée
+        // The stock status is the only colored column
         table.getColumnModel().getColumn(4).setCellRenderer(new DefaultTableCellRenderer() {
+            // Colors the status text: red for LOW, orange for MEDIUM, green for OK.
             @Override
             public Component getTableCellRendererComponent(JTable source, Object value, boolean selected,
                     boolean focused, int row, int column) {
@@ -71,10 +79,9 @@ public class StockView extends JFrame {
             }
         });
 
-        JPanel top = new JPanel(new BorderLayout(0, 4));
+        JPanel top = new JPanel(new BorderLayout(0, 6));
+        top.setOpaque(false);
         top.add(StyleManager.createTitle("Stock"), BorderLayout.NORTH);
-        top.add(new JLabel("Status:  LOW (5 or less)   |   MEDIUM (6 to 20)   |   OK (more than 20)"),
-                BorderLayout.SOUTH);
 
         JButton stockIn = new JButton("Stock In");
         JButton stockOut = new JButton("Stock Out");
@@ -91,15 +98,17 @@ public class StockView extends JFrame {
 
         JPanel page = StyleManager.createPage();
         page.add(top, BorderLayout.NORTH);
-        page.add(new JScrollPane(table), BorderLayout.CENTER);
+        page.add(StyleManager.createScrollPane(table), BorderLayout.CENTER);
         page.add(StyleManager.createButtonBar(stockIn, stockOut, refresh, alerts, close), BorderLayout.SOUTH);
         setContentPane(page);
     }
 
+    /** Reloads the stock table and shows errors. */
     private void refreshStock() {
         refreshStock(true);
     }
 
+    /** Reloads the stock table; errors are only shown when requested. */
     private void refreshStock(boolean showError) {
         try {
             products.clear();
@@ -107,6 +116,7 @@ public class StockView extends JFrame {
             tableModel.setRowCount(0);
             for (Product product : products) {
                 int quantity = product.getStockQuantity();
+                // LOW: at or below the minimum; MEDIUM: up to 20 units; OK: more than 20.
                 String status = quantity <= MINIMUM_STOCK ? "LOW" : quantity <= 20 ? "MEDIUM" : "OK";
                 tableModel.addRow(new Object[] { product.getReference(), product.getDesignation(), quantity,
                         MINIMUM_STOCK, status });
@@ -117,6 +127,7 @@ public class StockView extends JFrame {
     }
 
 
+    /** Asks for a quantity and adds it to (stock in) or removes it from (stock out) the selected product. */
     private void changeStock(boolean stockIn) {
         int row = table.getSelectedRow();
         if (row < 0) {
@@ -149,6 +160,7 @@ public class StockView extends JFrame {
         }
     }
 
+    /** Lists the products whose stock is at or below the minimum. */
     private void showAlerts() {
         StringBuilder message = new StringBuilder("LOW STOCK PRODUCTS\n\n");
         for (Product product : products) {
@@ -163,6 +175,7 @@ public class StockView extends JFrame {
         JOptionPane.showMessageDialog(this, message.toString(), "Stock Alerts", JOptionPane.WARNING_MESSAGE);
     }
 
+    /** Displays an error dialog. */
     private void showError(String message) {
         JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
     }

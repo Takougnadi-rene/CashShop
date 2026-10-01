@@ -1,7 +1,6 @@
 package com.cash_shop.employee;
 
 import java.awt.BorderLayout;
-import java.awt.FlowLayout;
 import java.awt.Toolkit;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -16,16 +15,19 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JTable;
-import javax.swing.Timer;
 import javax.swing.JTextField;
+import javax.swing.Timer;
 import javax.swing.table.DefaultTableModel;
 
 import com.cash_shop.common.EmailService;
 import com.cash_shop.common.StyleManager;
 import com.cash_shop.user.AccountCredentials;
 
+/**
+ * Swing window to manage employees (add, modify, delete, search). It can be opened in read-only mode, and
+ * refreshes itself every 5 seconds.
+ */
 public class EmployeeView extends JFrame {
     private static final Logger LOGGER = Logger.getLogger(EmployeeView.class.getName());
     private final JTextField tfEmployeeId = StyleManager.createField();
@@ -45,13 +47,16 @@ public class EmployeeView extends JFrame {
     private final List<Employee> employees = new ArrayList<>();
     private final List<Employee> visibleEmployees = new ArrayList<>();
     private final boolean readOnly;
+    // True while the table is being rebuilt, so that selection events are ignored.
     private boolean refreshing;
     private final Timer refreshTimer = new Timer(5000, event -> refreshFromDatabase());
 
+    /** Editable window. */
     public EmployeeView() {
         this(false);
     }
 
+    /** Window that can be opened read-only. */
     public EmployeeView(boolean readOnly) {
         this.readOnly = readOnly;
         setTitle("Employee Management");
@@ -68,6 +73,7 @@ public class EmployeeView extends JFrame {
         loadEmployees();
         refreshTimer.start();
         addWindowListener(new WindowAdapter() {
+            // Stop the periodic refresh once the window is closed.
             @Override
             public void windowClosed(WindowEvent event) {
                 refreshTimer.stop();
@@ -75,9 +81,10 @@ public class EmployeeView extends JFrame {
         });
     }
 
+    /** Builds the form, the search bar, the table and the buttons. */
     private void buildUI() {
-        // Formulaire à gauche
-        JPanel form = StyleManager.createForm("Employee details");
+        // Form on the left
+        JPanel form = StyleManager.createForm("Employee Details");
         StyleManager.addRow(form, 0, "Employee ID:", tfEmployeeId);
         StyleManager.addRow(form, 1, "First Name:", tfFirstName);
         StyleManager.addRow(form, 2, "Last Name:", tfLastName);
@@ -85,23 +92,34 @@ public class EmployeeView extends JFrame {
         StyleManager.addRow(form, 4, "Salary:", tfSalary);
         StyleManager.addRow(form, 5, "Role:", cbRole);
         JPanel left = new JPanel(new BorderLayout());
+        left.setOpaque(false);
         left.add(form, BorderLayout.NORTH);
 
-        // Recherche au-dessus du tableau
+        // Styled search bar
         JButton btnSearch = new JButton("Search");
         btnSearch.addActionListener(event -> searchEmployee());
         tfSearch.addActionListener(event -> searchEmployee());
-        JPanel searchBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        searchBar.add(new JLabel("Search:"));
+        tfSearch.setBackground(StyleManager.BG_INPUT);
+        tfSearch.setForeground(StyleManager.TEXT_PRIMARY);
+        tfSearch.setCaretColor(StyleManager.ACCENT_PRIMARY);
+        tfSearch.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+                javax.swing.BorderFactory.createLineBorder(StyleManager.BORDER_COLOR, 1),
+                javax.swing.BorderFactory.createEmptyBorder(6, 10, 6, 10)));
+        JLabel searchLabel = StyleManager.createLabel("Search:");
+        JPanel searchBar = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 0));
+        searchBar.setOpaque(false);
+        searchBar.add(searchLabel);
         searchBar.add(tfSearch);
         searchBar.add(btnSearch);
+        StyleManager.styleButton(btnSearch);
 
         table.getSelectionModel().addListSelectionListener(event -> selectEmployee());
         JPanel center = new JPanel(new BorderLayout(0, 8));
+        center.setOpaque(false);
         center.add(searchBar, BorderLayout.NORTH);
-        center.add(new JScrollPane(table), BorderLayout.CENTER);
+        center.add(StyleManager.createScrollPane(table), BorderLayout.CENTER);
 
-        // Boutons
+        // Buttons
         JButton btnAdd = new JButton("Add");
         JButton btnModify = new JButton("Modify");
         JButton btnDelete = new JButton("Delete");
@@ -122,11 +140,13 @@ public class EmployeeView extends JFrame {
         setContentPane(page);
     }
 
+    /** Reloads employees from the database and restores the previous selection. */
     private void loadEmployees() {
         String selectedMatricule = selectedEmployee == null ? null : selectedEmployee.getMatricule();
+        List<Employee> loadedEmployees = employeeDAO.getAllEmployees();
         refreshing = true;
         employees.clear();
-        employees.addAll(employeeDAO.getAllEmployees());
+        employees.addAll(loadedEmployees);
         searchEmployee();
         if (selectedMatricule != null) {
             boolean selectionRestored = false;
@@ -146,6 +166,7 @@ public class EmployeeView extends JFrame {
         refreshing = false;
     }
 
+    /** Shows the given employees in the table. */
     private void displayEmployees(List<Employee> employeeList) {
         visibleEmployees.clear();
         visibleEmployees.addAll(employeeList);
@@ -157,6 +178,7 @@ public class EmployeeView extends JFrame {
         }
     }
 
+    /** Copies the selected row into the form. */
     private void selectEmployee() {
         if (refreshing) {
             return;
@@ -174,6 +196,10 @@ public class EmployeeView extends JFrame {
         cbRole.setSelectedItem(selectedEmployee.getRole());
     }
 
+    /**
+     * Creates the employee and its account, e-mails the credentials when SMTP is configured, and shows them to
+     * the user.
+     */
     private void addEmployee() {
         try {
             Employee employee = readEmployee();
@@ -199,6 +225,7 @@ public class EmployeeView extends JFrame {
         }
     }
 
+    /** Saves the modified employee. */
     private void updateEmployee() {
         if (selectedEmployee == null) {
             showError("Select an employee.");
@@ -206,17 +233,16 @@ public class EmployeeView extends JFrame {
         }
         try {
             Employee employee = readEmployee();
-            int index = employees.indexOf(selectedEmployee);
             employeeDAO.updateEmployee(employee);
-            employees.set(index, employee);
             loadEmployees();
             clearForm();
             showSuccess("Employee updated.");
-        } catch (IllegalArgumentException exception) {
+        } catch (IllegalArgumentException | IllegalStateException exception) {
             showError(exception.getMessage());
         }
     }
 
+    /** Deletes the selected employee after confirmation. */
     private void deleteEmployee() {
         if (selectedEmployee == null) {
             showError("Select an employee.");
@@ -226,13 +252,18 @@ public class EmployeeView extends JFrame {
                 "Delete " + selectedEmployee.getFirstName() + " " + selectedEmployee.getLastName() + " ?",
                 "Confirmation", JOptionPane.YES_NO_OPTION);
         if (confirmation == JOptionPane.YES_OPTION) {
-            employeeDAO.deleteEmployee(selectedEmployee.getMatricule());
-            employees.remove(selectedEmployee);
-            loadEmployees();
-            clearForm();
+            try {
+                employeeDAO.deleteEmployee(selectedEmployee.getMatricule());
+                employees.remove(selectedEmployee);
+                loadEmployees();
+                clearForm();
+            } catch (IllegalStateException exception) {
+                showError(exception.getMessage());
+            }
         }
     }
 
+    /** Builds an Employee from the form, validating the required fields and the salary. */
     private Employee readEmployee() {
         String employeeId = tfEmployeeId.getText().trim();
         String firstName = tfFirstName.getText().trim();
@@ -250,6 +281,7 @@ public class EmployeeView extends JFrame {
         }
     }
 
+    /** Filters the table on matricule, first name, last name or e-mail. */
     private void searchEmployee() {
         String term = tfSearch.getText().trim().toLowerCase();
         List<Employee> results = new ArrayList<>();
@@ -264,6 +296,7 @@ public class EmployeeView extends JFrame {
         displayEmployees(results);
     }
 
+    /** Periodic refresh; failures are only logged. */
     private void refreshFromDatabase() {
         try {
             loadEmployees();
@@ -272,6 +305,7 @@ public class EmployeeView extends JFrame {
         }
     }
 
+    /** Empties the form and the selection. */
     private void clearForm() {
         tfEmployeeId.setText("");
         tfFirstName.setText("");
@@ -284,16 +318,13 @@ public class EmployeeView extends JFrame {
         table.clearSelection();
     }
 
+    /** Displays an error dialog. */
     private void showError(String message) {
         JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
     }
 
+    /** Displays an information dialog. */
     private void showSuccess(String message) {
         JOptionPane.showMessageDialog(this, message, "Success", JOptionPane.INFORMATION_MESSAGE);
-    }
-
-    public static void main(String[] args) {
-        StyleManager.applyLookAndFeel();
-        javax.swing.SwingUtilities.invokeLater(() -> new EmployeeView().setVisible(true));
     }
 }

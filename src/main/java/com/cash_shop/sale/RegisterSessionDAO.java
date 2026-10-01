@@ -8,9 +8,15 @@ import java.util.UUID;
 
 import com.cash_shop.common.DBConnection;
 
+/**
+ * Tracks the open cash registers: each register stores a session row and refreshes its heartbeat; a register
+ * counts as active if its last heartbeat is recent.
+ */
 public class RegisterSessionDAO {
+    // A register counts as active when its last heartbeat is more recent than this many seconds.
     private static final int ACTIVE_WINDOW_SECONDS = 30;
 
+    /** Registers a new cash register session and returns its id. */
     public String openSession(String cashierMatricule) {
         String sessionId = UUID.randomUUID().toString();
         try (Connection connection = DBConnection.getConnection()) {
@@ -28,15 +34,18 @@ public class RegisterSessionDAO {
         }
     }
 
+    /** Marks the session as still alive. */
     public void heartbeat(String sessionId) {
         executeSessionUpdate("UPDATE cash_register_sessions SET last_heartbeat = CURRENT_TIMESTAMP "
                 + "WHERE session_id = ?", sessionId);
     }
 
+    /** Removes the session when the register is closed. */
     public void closeSession(String sessionId) {
         executeSessionUpdate("DELETE FROM cash_register_sessions WHERE session_id = ?", sessionId);
     }
 
+    /** Counts the sessions that sent a heartbeat during the last 30 seconds. */
     public int getActiveSessionCount() {
         String sql = "SELECT COUNT(*) FROM cash_register_sessions "
                 + "WHERE last_heartbeat >= CURRENT_TIMESTAMP - INTERVAL " + ACTIVE_WINDOW_SECONDS + " SECOND";
@@ -51,6 +60,7 @@ public class RegisterSessionDAO {
         }
     }
 
+    /** Runs a statement taking the session id as its only parameter. */
     private void executeSessionUpdate(String sql, String sessionId) {
         if (sessionId == null) {
             return;
@@ -66,6 +76,7 @@ public class RegisterSessionDAO {
         }
     }
 
+    /** Creates the sessions table when it does not exist yet. */
     private void ensureSchema(Connection connection) throws SQLException {
         String sql = "CREATE TABLE IF NOT EXISTS cash_register_sessions ("
                 + "session_id VARCHAR(36) PRIMARY KEY, "

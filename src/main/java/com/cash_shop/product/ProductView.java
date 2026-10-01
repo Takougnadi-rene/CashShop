@@ -1,7 +1,6 @@
 package com.cash_shop.product;
 
 import java.awt.BorderLayout;
-import java.awt.FlowLayout;
 import java.awt.Toolkit;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -14,7 +13,6 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.Timer;
@@ -22,9 +20,14 @@ import javax.swing.table.DefaultTableModel;
 
 import com.cash_shop.common.StyleManager;
 
+/**
+ * Swing window to manage the product catalog (add, delete, search). Fields adapt to the product type; read-
+ * only mode is available. Refreshes every 5 seconds.
+ */
 public class ProductView extends JFrame {
 
     private final List<Product> products = new ArrayList<>();
+    private final List<Product> visibleProducts = new ArrayList<>();
     private final JTextField tfReference = StyleManager.createField();
     private final JTextField tfDesignation = StyleManager.createField();
     private final JTextField tfPurchase = StyleManager.createField();
@@ -46,10 +49,12 @@ public class ProductView extends JFrame {
     private final boolean readOnly;
     private final Timer refreshTimer = new Timer(5000, event -> refreshTable(false));
 
+    /** Editable window. */
     public ProductView() {
         this(false);
     }
 
+    /** Window that can be opened read-only. */
     public ProductView(boolean readOnly) {
         this.readOnly = readOnly;
         setTitle("Product Management");
@@ -72,6 +77,7 @@ public class ProductView extends JFrame {
         refreshTable();
         refreshTimer.start();
         addWindowListener(new WindowAdapter() {
+            // Stop the periodic refresh once the window is closed.
             @Override
             public void windowClosed(WindowEvent event) {
                 refreshTimer.stop();
@@ -79,9 +85,10 @@ public class ProductView extends JFrame {
         });
     }
 
+    /** Builds the form, the search bar, the table and the buttons. */
     private void buildUI() {
-        // Formulaire à gauche
-        JPanel form = StyleManager.createForm("Product details");
+        // Form on the left
+        JPanel form = StyleManager.createForm("Product Details");
         StyleManager.addRow(form, 0, "Reference:", tfReference);
         StyleManager.addRow(form, 1, "Name:", tfDesignation);
         StyleManager.addRow(form, 2, "Purchase Price (USD):", tfPurchase);
@@ -95,22 +102,33 @@ public class ProductView extends JFrame {
         cbProductType.addActionListener(e -> updateTypeFields());
         updateTypeFields();
         JPanel left = new JPanel(new BorderLayout());
+        left.setOpaque(false);
         left.add(form, BorderLayout.NORTH);
 
-        // Recherche au-dessus du tableau
+        // Styled search bar
         JButton btnSearch = new JButton("Search");
         btnSearch.addActionListener(e -> searchProducts());
         tfSearch.addActionListener(e -> searchProducts());
-        JPanel searchBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        searchBar.add(new JLabel("Search:"));
+        tfSearch.setBackground(StyleManager.BG_INPUT);
+        tfSearch.setForeground(StyleManager.TEXT_PRIMARY);
+        tfSearch.setCaretColor(StyleManager.ACCENT_PRIMARY);
+        tfSearch.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+                javax.swing.BorderFactory.createLineBorder(StyleManager.BORDER_COLOR, 1),
+                javax.swing.BorderFactory.createEmptyBorder(6, 10, 6, 10)));
+        JLabel searchLabel = StyleManager.createLabel("Search:");
+        JPanel searchBar = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 0));
+        searchBar.setOpaque(false);
+        searchBar.add(searchLabel);
         searchBar.add(tfSearch);
         searchBar.add(btnSearch);
+        StyleManager.styleButton(btnSearch);
 
         JPanel center = new JPanel(new BorderLayout(0, 8));
+        center.setOpaque(false);
         center.add(searchBar, BorderLayout.NORTH);
-        center.add(new JScrollPane(table), BorderLayout.CENTER);
+        center.add(StyleManager.createScrollPane(table), BorderLayout.CENTER);
 
-        // Boutons
+        // Buttons
         JButton btnAdd = new JButton("Add");
         JButton btnDelete = new JButton("Delete");
         JButton btnClear = new JButton("Clear");
@@ -130,7 +148,7 @@ public class ProductView extends JFrame {
         setContentPane(page);
     }
 
-    /** N'active que les champs utiles pour le type de produit choisi. */
+    /** Enables only the fields relevant to the selected product type. */
     private void updateTypeFields() {
         if (readOnly) {
             return;
@@ -146,6 +164,7 @@ public class ProductView extends JFrame {
         cbArtisanalType.setEnabled(artisanal);
     }
 
+    /** Creates the product (base row, then the type-specific row). */
     private void addProduct() {
         try {
             Product product = readProductFromFields();
@@ -165,13 +184,14 @@ public class ProductView extends JFrame {
         }
     }
 
+    /** Deletes the selected product from the type-specific table and from the products table. */
     private void deleteSelectedProduct() {
         int selectedRow = table.getSelectedRow();
         if (selectedRow == -1) {
             JOptionPane.showMessageDialog(this, "Select a product.");
             return;
         }
-        Product product = products.get(table.convertRowIndexToModel(selectedRow));
+        Product product = visibleProducts.get(table.convertRowIndexToModel(selectedRow));
         try {
             if (product instanceof ElectronicProduct electronicProduct) {
                 productDAO.deleteElectronicProduct(electronicProduct);
@@ -187,21 +207,30 @@ public class ProductView extends JFrame {
         }
     }
 
+    /** Applies the search text to the table. */
     private void searchProducts() {
+        applyFilter();
+    }
+
+    /**
+     * Rebuilds the table from the products matching the search text, and remembers which products are
+     * displayed.
+     */
+    private void applyFilter() {
         String keyword = tfSearch.getText().trim().toLowerCase();
         tableModel.setRowCount(0);
-        if (keyword.isEmpty()) {
-            refreshTable();
-            return;
-        }
+        visibleProducts.clear();
         for (Product product : products) {
-            if (String.valueOf(product.getReference()).contains(keyword)
+            if (keyword.isEmpty()
+                    || String.valueOf(product.getReference()).contains(keyword)
                     || product.getDesignation().toLowerCase().contains(keyword)) {
+                visibleProducts.add(product);
                 addProductRow(product);
             }
         }
     }
 
+    /** Builds a Product (or subclass) from the form, validating the values. */
     private Product readProductFromFields() {
         String referenceStr = tfReference.getText().trim();
         String designation = tfDesignation.getText().trim();
@@ -242,18 +271,17 @@ public class ProductView extends JFrame {
         }
     }
 
+    /** Reloads the products and shows errors. */
     private void refreshTable() {
         refreshTable(true);
     }
 
+    /** Reloads the products; errors are only shown when requested (silent for the periodic refresh). */
     private void refreshTable(boolean showError) {
         try {
             products.clear();
             products.addAll(productDAO.getAllProducts());
-            tableModel.setRowCount(0);
-            for (Product product : products) {
-                addProductRow(product);
-            }
+            applyFilter();
         } catch (IllegalStateException exception) {
             if (showError) {
                 JOptionPane.showMessageDialog(this, exception.getMessage(), "Database Error",
@@ -262,6 +290,7 @@ public class ProductView extends JFrame {
         }
     }
 
+    /** Adds one table row for the given product. */
     private void addProductRow(Product product) {
         if (product == null) return;
         String expirationDate = product instanceof FreshProduct
@@ -275,6 +304,7 @@ public class ProductView extends JFrame {
                 String.format("%.2f USD", product.getSellingPrice()), expirationDate, warranty, artisanalType });
     }
 
+    /** Empties the form fields. */
     private void clearForm() {
         tfReference.setText("");
         tfDesignation.setText("");
@@ -286,10 +316,5 @@ public class ProductView extends JFrame {
         tfBrand.setText("");
         tfWarranty.setText("");
         tfSearch.setText("");
-    }
-
-    public static void main(String[] args) {
-        StyleManager.applyLookAndFeel();
-        javax.swing.SwingUtilities.invokeLater(() -> new ProductView().setVisible(true));
     }
 }

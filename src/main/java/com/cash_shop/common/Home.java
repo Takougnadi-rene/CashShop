@@ -48,6 +48,10 @@ import com.cash_shop.user.AccountManagementView;
 import com.cash_shop.user.UserManagementView;
 import com.cash_shop.user.UserView;
 
+/**
+ * Main window after login: header with the clock, role-based navigation sidebar and summary cards (products,
+ * low stock, stock value, active registers).
+ */
 public class Home extends JFrame {
     private final String username;
     private final String employeeMatricule;
@@ -62,10 +66,12 @@ public class Home extends JFrame {
     private Timer refreshTimer;
     private final RegisterSessionDAO registerSessionDAO = new RegisterSessionDAO();
 
+    /** Home window without a known matricule. */
     public Home(String username, Role role) {
         this(username, role, "");
     }
 
+    /** Home window for a user, with the matricule of the linked employee. */
     public Home(String username, Role role, String employeeMatricule) {
         this.username = username;
         this.role = role;
@@ -82,6 +88,7 @@ public class Home extends JFrame {
         refreshTimer = new Timer(5000, event -> refreshOverview());
         refreshTimer.start();
         addWindowListener(new java.awt.event.WindowAdapter() {
+            // Stop the timers when the window is closed.
             @Override
             public void windowClosed(java.awt.event.WindowEvent event) {
                 dateTimer.stop();
@@ -90,6 +97,7 @@ public class Home extends JFrame {
         });
     }
 
+    /** Assembles header, sidebar and central area. */
     private void buildUI() {
         JPanel root = new JPanel(new BorderLayout(0, 0));
         root.setBackground(StyleManager.BG_SURFACE);
@@ -101,8 +109,9 @@ public class Home extends JFrame {
         setContentPane(root);
     }
 
-    // ── En-tête ──────────────────────────────────────────────────────────────
+    // ---- Header ----
 
+    /** Builds the gradient header with the title and the clock. */
     private JPanel buildHeader() {
         JPanel header = new JPanel(new BorderLayout()) {
             @Override protected void paintComponent(Graphics g) {
@@ -111,7 +120,7 @@ public class Home extends JFrame {
                 g2.setPaint(new GradientPaint(0, 0, StyleManager.BG_DEEP, getWidth(), 0,
                         new Color(0x1A, 0x14, 0x40)));
                 g2.fillRect(0, 0, getWidth(), getHeight());
-                // Ligne inférieure accent
+                // Accent line along the bottom edge
                 g2.setColor(StyleManager.ACCENT_PRIMARY);
                 g2.setStroke(new BasicStroke(2f));
                 g2.drawLine(0, getHeight() - 1, getWidth(), getHeight() - 1);
@@ -126,7 +135,7 @@ public class Home extends JFrame {
         logo.setFont(new Font("Segoe UI", Font.BOLD, 18));
         logo.setForeground(StyleManager.TEXT_PRIMARY);
 
-        // Horloge
+        // Clock
         dateLabel = new JLabel(currentDateTime());
         dateLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         dateLabel.setForeground(StyleManager.TEXT_SECONDARY);
@@ -136,15 +145,16 @@ public class Home extends JFrame {
         return header;
     }
 
-    // ── Sidebar ──────────────────────────────────────────────────────────────
+    // ---- Sidebar ----
 
+    /** Builds the navigation sidebar: only the modules allowed for the role are shown. */
     private JPanel buildSidebar() {
         JPanel sidebar = new JPanel() {
             @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setColor(StyleManager.BG_DEEP);
                 g2.fillRect(0, 0, getWidth(), getHeight());
-                // Bordure droite
+                // Right border
                 g2.setColor(StyleManager.BORDER_COLOR);
                 g2.setStroke(new BasicStroke(1f));
                 g2.drawLine(getWidth() - 1, 0, getWidth() - 1, getHeight());
@@ -156,7 +166,7 @@ public class Home extends JFrame {
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
         sidebar.setBorder(BorderFactory.createEmptyBorder(20, 10, 16, 10));
 
-        // Profil utilisateur
+        // User profile
         JLabel userLabel = new JLabel(username);
         userLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         userLabel.setForeground(StyleManager.TEXT_PRIMARY);
@@ -193,6 +203,7 @@ public class Home extends JFrame {
         navTitle.setBorder(BorderFactory.createEmptyBorder(0, 8, 8, 0));
         sidebar.add(navTitle);
 
+        // Each button is shown only if the role may access the module.
         if (canAccess(Module.PRODUCTS))
             sidebar.add(buildNavButton("Products", () -> new ProductView(!canEditInventory())));
         if (canAccess(Module.STOCK))
@@ -221,12 +232,13 @@ public class Home extends JFrame {
         sidebar.add(buildNavButton("Manage my account", () -> new AccountManagementView(this, username)));
         sidebar.add(Box.createVerticalStrut(8));
 
-        // Bouton déconnexion
+        // Logout button
         JButton logout = buildLogoutButton();
         sidebar.add(logout);
         return sidebar;
     }
 
+    /** Creates a sidebar button opening the window built by the factory. */
     private JButton buildNavButton(String label, Supplier<? extends Window> factory) {
         JButton btn = new JButton(label) {
             private boolean hovered = false;
@@ -264,6 +276,7 @@ public class Home extends JFrame {
         return btn;
     }
 
+    /** Creates the logout button (returns to the login window). */
     private JButton buildLogoutButton() {
         JButton btn = new JButton("Logout") {
             private boolean hovered = false;
@@ -302,14 +315,15 @@ public class Home extends JFrame {
         return btn;
     }
 
-    // ── Zone centrale ────────────────────────────────────────────────────────
+    // ---- Central area ----
 
+    /** Builds the welcome message and the statistics cards. */
     private JPanel buildCenter() {
         JPanel center = new JPanel(new BorderLayout(0, 16));
         center.setBackground(StyleManager.BG_SURFACE);
         center.setBorder(BorderFactory.createEmptyBorder(24, 24, 24, 24));
 
-        // Titre de bienvenue
+        // Title de bienvenue
         JPanel welcome = new JPanel();
         welcome.setOpaque(false);
         welcome.setLayout(new BoxLayout(welcome, BoxLayout.Y_AXIS));
@@ -325,7 +339,7 @@ public class Home extends JFrame {
 
         center.add(welcome, BorderLayout.NORTH);
 
-        // Cartes de statistiques
+        // Statistics cards
         if (canAccess(Module.PRODUCTS)) {
             JPanel cards = new JPanel(new GridLayout(1, 4, 16, 0));
             cards.setOpaque(false);
@@ -350,6 +364,7 @@ public class Home extends JFrame {
         return center;
     }
 
+    /** Creates a statistic card with a caption, a value and an accent color. */
     private JPanel buildStatCard(String caption, JLabel valueLabel, Color accent) {
         JPanel card = new JPanel(new BorderLayout(0, 8)) {
             @Override protected void paintComponent(Graphics g) {
@@ -360,7 +375,7 @@ public class Home extends JFrame {
                 g2.setColor(StyleManager.BORDER_COLOR);
                 g2.setStroke(new BasicStroke(1f));
                 g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 16, 16);
-                // Accent sur le dessus
+                // Accent bar along the top
                 g2.setColor(accent);
                 g2.setStroke(new BasicStroke(3f));
                 g2.drawLine(20, 0, getWidth() - 20, 0);
@@ -387,8 +402,9 @@ public class Home extends JFrame {
         return card;
     }
 
-    // ── Données ──────────────────────────────────────────────────────────────
+    // ---- Data ----
 
+    /** Refreshes the statistics (products, low stock, stock value, active registers). */
     private void refreshOverview() {
         refreshActiveRegisters();
         if (!canAccess(Module.PRODUCTS)) return;
@@ -407,6 +423,7 @@ public class Home extends JFrame {
         }
     }
 
+    /** Updates the number of open cash registers. */
     private void refreshActiveRegisters() {
         if (activeRegistersLabel == null) {
             return;
@@ -418,14 +435,17 @@ public class Home extends JFrame {
         }
     }
 
+    /** Tells whether the current role may open the module. */
     private boolean canAccess(Module module) {
         return accessService.canAccess(role, module);
     }
 
+    /** Only managers can edit products, stock and aisles. */
     private boolean canEditInventory() {
         return role == Role.MANAGER;
     }
 
+    /** Formats the current date and time for the header. */
     private String currentDateTime() {
         return new SimpleDateFormat("dd/MM/yyyy  |  HH:mm:ss").format(new Date());
     }

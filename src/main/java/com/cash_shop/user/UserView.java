@@ -35,6 +35,10 @@ import com.cash_shop.common.StyleManager;
 import com.cash_shop.employee.Employee.Role;
 import com.cash_shop.sale.SaleView;
 
+/**
+ * Login window. After a successful login it opens the home screen, or directly the cash register / aisle
+ * window for cashiers and aisle managers.
+ */
 public class UserView extends JFrame {
 
     private final JTextField tfLogin    = createStyledField();
@@ -43,8 +47,9 @@ public class UserView extends JFrame {
     private final UserService    authService   = new UserService();
     private final AccessService  accessService = new AccessService();
 
+    /** Builds the login window. */
     public UserView() {
-        setTitle("Cash Shop – Login");
+        setTitle("Cash Shop \u2013 Login");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setResizable(false);
         buildUI();
@@ -53,8 +58,11 @@ public class UserView extends JFrame {
         setLocationRelativeTo(null);
     }
 
-    // ─── Construction de l'interface ────────────────────────────────────────
+    // ---- UI construction ----
 
+    /**
+     * Builds the full login screen layout: branding panel + login form.
+     */
     private void buildUI() {
         JPanel root = new JPanel(new BorderLayout()) {
             @Override protected void paintComponent(Graphics g) {
@@ -71,7 +79,7 @@ public class UserView extends JFrame {
         setContentPane(root);
     }
 
-    /** Panneau gauche avec gradient et branding. */
+    /** Left panel with a gradient and the branding. */
     private JPanel buildBrandPanel() {
         JPanel panel = new JPanel() {
             @Override protected void paintComponent(Graphics g) {
@@ -81,7 +89,7 @@ public class UserView extends JFrame {
                         0, 0,   new Color(0x2D, 0x1B, 0x69),
                         0, getHeight(), new Color(0x11, 0x0D, 0x30)));
                 g2.fillRect(0, 0, getWidth(), getHeight());
-                // Cercles décoratifs
+                // Decorative circles
                 g2.setColor(new Color(0x6C, 0x63, 0xFF, 40));
                 g2.fillOval(-60, -60, 220, 220);
                 g2.setColor(new Color(0x00, 0xD4, 0xAA, 25));
@@ -93,8 +101,8 @@ public class UserView extends JFrame {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBorder(BorderFactory.createEmptyBorder(60, 40, 60, 40));
 
-        // Icône / logo
-        JLabel icon = new JLabel("") {
+        // Icon / logo
+        JLabel icon = new JLabel("\uD83D\uDED2") {
             { setFont(new Font("Segoe UI Emoji", Font.PLAIN, 52));
               setForeground(Color.WHITE);
               setAlignmentX(CENTER_ALIGNMENT); }
@@ -110,7 +118,7 @@ public class UserView extends JFrame {
         subtitle.setForeground(new Color(0xB0, 0xA8, 0xFF));
         subtitle.setAlignmentX(CENTER_ALIGNMENT);
 
-        // Séparateur décoratif
+        // Decorative separator
         JPanel sep = new JPanel() {
             { setOpaque(false); setMaximumSize(new Dimension(60, 3)); }
             @Override protected void paintComponent(Graphics g) {
@@ -141,7 +149,7 @@ public class UserView extends JFrame {
         return panel;
     }
 
-    /** Panneau droit avec formulaire de connexion. */
+    /** Right panel with the login form. */
     private JPanel buildLoginPanel() {
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBackground(StyleManager.BG_SURFACE);
@@ -151,7 +159,7 @@ public class UserView extends JFrame {
         gbc.gridx = 0; gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(6, 0, 6, 0);
 
-        // Titre
+        // Title
         JLabel heading = new JLabel("Welcome!");
         heading.setFont(new Font("Segoe UI", Font.BOLD, 22));
         heading.setForeground(StyleManager.TEXT_PRIMARY);
@@ -164,19 +172,19 @@ public class UserView extends JFrame {
         gbc.gridy = 1; gbc.insets = new Insets(0, 0, 28, 0);
         panel.add(sub, gbc);
 
-        // Champ username
+        // Username field
         gbc.gridy = 2; gbc.insets = new Insets(0, 0, 4, 0);
         panel.add(fieldLabel("Username"), gbc);
         gbc.gridy = 3; gbc.insets = new Insets(0, 0, 16, 0);
         panel.add(tfLogin, gbc);
 
-        // Champ password
+        // Password field
         gbc.gridy = 4; gbc.insets = new Insets(0, 0, 4, 0);
         panel.add(fieldLabel("Password"), gbc);
         gbc.gridy = 5; gbc.insets = new Insets(0, 0, 28, 0);
         panel.add(tfPassword, gbc);
 
-        // Bouton login
+        // Login button
         JButton btnLogin = buildLoginButton();
         btnLogin.addActionListener(e -> login());
         tfPassword.addActionListener(e -> login());
@@ -187,8 +195,9 @@ public class UserView extends JFrame {
         return panel;
     }
 
-    // ─── Helpers visuels ────────────────────────────────────────────────────
+    // ---- Visual helpers ----
 
+    /** Creates a small label for a form field. */
     private JLabel fieldLabel(String text) {
         JLabel label = new JLabel(text);
         label.setFont(new Font("Segoe UI", Font.BOLD, 11));
@@ -196,6 +205,7 @@ public class UserView extends JFrame {
         return label;
     }
 
+    /** Creates a styled text field. */
     private static JTextField createStyledField() {
         JTextField f = new JTextField(20);
         f.setBackground(StyleManager.BG_INPUT);
@@ -209,6 +219,7 @@ public class UserView extends JFrame {
         return f;
     }
 
+    /** Creates a styled password field. */
     private static JPasswordField createStyledPasswordField() {
         JPasswordField f = new JPasswordField(20);
         f.setBackground(StyleManager.BG_INPUT);
@@ -222,6 +233,7 @@ public class UserView extends JFrame {
         return f;
     }
 
+    /** Creates the gradient "Sign In" button with a hover effect. */
     private JButton buildLoginButton() {
         JButton btn = new JButton("Sign In") {
             private boolean hovered = false;
@@ -258,8 +270,12 @@ public class UserView extends JFrame {
 
 
 
-    // ─── Logique de connexion ────────────────────────────────────────────────
+    // ---- Login logic ----
 
+    /**
+     * Validates the entered username and password, checks whether the user is
+     * authorized for the app and then opens the correct module.
+     */
     private void login() {
         String login    = tfLogin.getText().trim();
         String password = new String(tfPassword.getPassword());
@@ -276,6 +292,7 @@ public class UserView extends JFrame {
         }
 
         try {
+            // Check the credentials, then check that the role has access to at least one module.
             User authenticatedUser = authService.authenticate(login, password);
             if (authenticatedUser == null) {
                 JOptionPane.showMessageDialog(this,
@@ -297,10 +314,12 @@ public class UserView extends JFrame {
         }
     }
 
+    /** Displays a warning dialog. */
     private void showWarning(String message) {
         JOptionPane.showMessageDialog(this, message, "Invalid Input", JOptionPane.WARNING_MESSAGE);
     }
 
+    /** Opens the window matching the role and reopens the login window when a landing window is closed. */
     private void openHome(User authenticatedUser) {
         Role role = authenticatedUser.getRole();
         JFrame landingWindow = switch (role) {
@@ -320,11 +339,6 @@ public class UserView extends JFrame {
             }
         });
         landingWindow.setVisible(true);
-    }
-
-    public static void main(String[] args) {
-        StyleManager.applyLookAndFeel();
-        SwingUtilities.invokeLater(() -> new UserView().setVisible(true));
     }
 }
 

@@ -3,6 +3,10 @@ package com.cash_shop.aisle;
 import java.util.ArrayList;
 import com.cash_shop.product.Product;
 
+/**
+ * Domain model of a supermarket aisle: code, name, category, the matricule of its manager and the products
+ * displayed in it.
+ */
 public class Aisle {
     private int aisleCode;
     private String aisleName;
@@ -10,6 +14,7 @@ public class Aisle {
     private String aisleChief;
     private ArrayList<Product> productsList;
 
+    /** Creates an aisle with an empty product list. */
     public Aisle(int aisleCode, String aisleName, String category, String aisleChief) {
         this.aisleCode = aisleCode;
         this.aisleName = aisleName;
