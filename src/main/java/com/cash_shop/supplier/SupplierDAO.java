@@ -20,6 +20,21 @@ import com.cash_shop.product.Product;
  */
 public class SupplierDAO {
 
+    /** Returns the number of supplier orders that have been delivered. */
+    public int getDeliveredOrderCount() {
+        String sql = "SELECT COUNT(*) FROM supplier_orders WHERE UPPER(status) IN ('DELIVERED', 'COMPLETED')";
+        try (Connection connection = DBConnection.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet results = statement.executeQuery()) {
+            if (!results.next()) {
+                throw new SQLException("Delivered order count query returned no result.");
+            }
+            return results.getInt(1);
+        } catch (SQLException exception) {
+            throw databaseError(exception);
+        }
+    }
+
     /**
      * Creates (or upgrades) the supplier tables when needed and inserts the default suppliers if the table is
      * empty.

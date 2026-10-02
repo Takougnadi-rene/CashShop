@@ -15,9 +15,12 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.RenderingHints;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
+import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -29,6 +32,8 @@ import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
 import javax.swing.UIManager;
 import javax.swing.border.AbstractBorder;
+import javax.swing.plaf.basic.BasicButtonUI;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 
@@ -86,9 +91,36 @@ public class StyleManager {
         UIManager.put("OptionPane.buttonFont", FONT_BUTTON);
         UIManager.put("Label.foreground", TEXT_PRIMARY);
         UIManager.put("Label.font", FONT_BODY);
+        UIManager.put("Button.background", ACCENT_PRIMARY);
+        UIManager.put("Button.foreground", Color.WHITE);
+        UIManager.put("Button.font", FONT_BUTTON);
+        UIManager.put("Button.focus", BORDER_COLOR);
+        UIManager.put("TextField.background", BG_INPUT);
+        UIManager.put("TextField.foreground", TEXT_PRIMARY);
+        UIManager.put("TextField.caretForeground", ACCENT_PRIMARY);
+        UIManager.put("TextField.selectionBackground", ACCENT_PRIMARY);
+        UIManager.put("PasswordField.background", BG_INPUT);
+        UIManager.put("PasswordField.foreground", TEXT_PRIMARY);
+        UIManager.put("PasswordField.caretForeground", ACCENT_PRIMARY);
+        UIManager.put("PasswordField.selectionBackground", ACCENT_PRIMARY);
+        UIManager.put("ComboBox.background", BG_INPUT);
+        UIManager.put("ComboBox.foreground", TEXT_PRIMARY);
+        UIManager.put("ComboBox.selectionBackground", ACCENT_PRIMARY);
+        UIManager.put("ComboBox.selectionForeground", Color.WHITE);
+        UIManager.put("Spinner.background", BG_INPUT);
+        UIManager.put("Spinner.foreground", TEXT_PRIMARY);
+        UIManager.put("CheckBox.background", BG_CARD);
+        UIManager.put("CheckBox.foreground", TEXT_PRIMARY);
+        UIManager.put("RadioButton.background", BG_CARD);
+        UIManager.put("RadioButton.foreground", TEXT_PRIMARY);
+        UIManager.put("Table.background", BG_SURFACE);
+        UIManager.put("Table.foreground", TEXT_PRIMARY);
+        UIManager.put("Table.selectionBackground", ACCENT_PRIMARY);
+        UIManager.put("Table.selectionForeground", Color.WHITE);
         UIManager.put("ToolTip.background", BG_CARD);
         UIManager.put("ToolTip.foreground", TEXT_PRIMARY);
         UIManager.put("ToolTip.border", BorderFactory.createLineBorder(BORDER_COLOR));
+        UIManager.put("ToolTip.font", FONT_BODY);
         UIManager.put("ScrollBar.thumb", BORDER_COLOR);
         UIManager.put("ScrollBar.track", BG_SURFACE);
     }
@@ -99,14 +131,19 @@ public class StyleManager {
     /** Creates a styled text field (dark input background, rounded border, visible caret). */
     public static JTextField createField() {
         JTextField field = new JTextField();
+        styleInput(field);
+        return field;
+    }
+
+    /** Applies the shared input style to text and password fields. */
+    public static void styleInput(JTextField field) {
         field.setFont(FONT_INPUT);
         field.setBackground(BG_INPUT);
         field.setForeground(TEXT_PRIMARY);
         field.setCaretColor(ACCENT_PRIMARY);
-        field.setBorder(BorderFactory.createCompoundBorder(
-                new RoundedBorder(BORDER_COLOR, 8),
-                BorderFactory.createEmptyBorder(4, 8, 4, 8)));
-        return field;
+        field.setSelectionColor(ACCENT_PRIMARY);
+        field.setSelectedTextColor(Color.WHITE);
+        applyInputBorder(field);
     }
 
     /** Creates a regular (secondary color) label. */
@@ -198,20 +235,37 @@ public class StyleManager {
     public static JTable createTable(DefaultTableModel model) {
         JTable table = new JTable(model);
         table.setFont(FONT_BODY);
-        table.setRowHeight(28);
+        table.setRowHeight(34);
         table.setBackground(BG_SURFACE);
         table.setForeground(TEXT_PRIMARY);
         table.setGridColor(BORDER_COLOR);
+        table.setShowVerticalLines(false);
+        table.setIntercellSpacing(new Dimension(0, 1));
         table.setSelectionBackground(ACCENT_PRIMARY);
         table.setSelectionForeground(Color.WHITE);
         table.setFillsViewportHeight(true);
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable source, Object value, boolean selected,
+                    boolean focused, int row, int column) {
+                super.getTableCellRendererComponent(source, value, selected, focused, row, column);
+                setForeground(selected ? Color.WHITE : TEXT_PRIMARY);
+                if (!selected) {
+                    setBackground(row % 2 == 0 ? BG_SURFACE : BG_CARD);
+                }
+                setBorder(BorderFactory.createEmptyBorder(0, 12, 0, 12));
+                return this;
+            }
+        });
 
         JTableHeader header = table.getTableHeader();
         header.setFont(FONT_SUBTITLE);
         header.setBackground(BG_CARD);
         header.setForeground(TEXT_PRIMARY);
         header.setReorderingAllowed(false);
+        header.setPreferredSize(new Dimension(0, 40));
+        header.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_COLOR));
         return table;
     }
 
@@ -220,6 +274,7 @@ public class StyleManager {
         JScrollPane scrollPane = new JScrollPane(table);
         scrollPane.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1));
         scrollPane.getViewport().setBackground(BG_SURFACE);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
         return scrollPane;
     }
 
@@ -240,15 +295,17 @@ public class StyleManager {
         button.setBackground(ACCENT_PRIMARY);
         button.setForeground(Color.WHITE);
         button.setFocusPainted(false);
-        button.setOpaque(true);
-        button.setContentAreaFilled(true);
+        button.setOpaque(false);
+        button.setContentAreaFilled(false);
+        button.setRolloverEnabled(true);
         button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        button.setBorder(BorderFactory.createEmptyBorder(8, 18, 8, 18));
+        button.setBorder(BorderFactory.createEmptyBorder(10, 18, 10, 18));
 
         // Hover effect: slightly brighter background while the mouse is over the button.
         // The listener is added only once, even if the button is styled several times.
         if (!Boolean.TRUE.equals(button.getClientProperty("styled"))) {
             button.putClientProperty("styled", Boolean.TRUE);
+            button.setUI(new RoundedButtonUI());
             button.addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseEntered(MouseEvent event) {
@@ -265,7 +322,48 @@ public class StyleManager {
         }
     }
 
+    private static void applyInputBorder(JTextField field) {
+        field.setBorder(BorderFactory.createCompoundBorder(
+                new RoundedBorder(BORDER_COLOR, 8),
+                BorderFactory.createEmptyBorder(4, 8, 4, 8)));
+        field.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent event) {
+                field.setBorder(BorderFactory.createCompoundBorder(
+                        new RoundedBorder(ACCENT_PRIMARY, 8),
+                        BorderFactory.createEmptyBorder(4, 8, 4, 8)));
+            }
+
+            @Override
+            public void focusLost(FocusEvent event) {
+                field.setBorder(BorderFactory.createCompoundBorder(
+                        new RoundedBorder(BORDER_COLOR, 8),
+                        BorderFactory.createEmptyBorder(4, 8, 4, 8)));
+            }
+        });
+    }
+
     // Helper classes
+
+    /** Paints styled buttons with a rounded background while retaining Swing's text and icon handling. */
+    private static class RoundedButtonUI extends BasicButtonUI {
+        @Override
+        public void paint(Graphics graphics, JComponent component) {
+            AbstractButton button = (AbstractButton) component;
+            Graphics2D g2 = (Graphics2D) graphics.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            Color background = button.getBackground();
+            if (!button.isEnabled()) {
+                background = BG_CARD;
+            } else if (button.getModel().isPressed()) {
+                background = background.darker();
+            }
+            g2.setColor(background);
+            g2.fillRoundRect(0, 0, button.getWidth(), button.getHeight(), 12, 12);
+            g2.dispose();
+            super.paint(graphics, component);
+        }
+    }
     
     /** Border with rounded corners, used by the text fields. */
     private static class RoundedBorder extends AbstractBorder {

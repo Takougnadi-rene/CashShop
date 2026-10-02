@@ -234,9 +234,6 @@ public class SupplierView extends JFrame {
         JPanel heading = new JPanel(new BorderLayout(0, 4));
         heading.setOpaque(false);
         heading.add(StyleManager.createTitle("Suppliers & Orders"), BorderLayout.NORTH);
-        JLabel subtitle = StyleManager.createLabel("Role: " + role.name()
-            + "  |  Manage supplier records, purchase orders, and incoming stock.");
-        heading.add(subtitle, BorderLayout.CENTER);
         actionStatusLabel.setHorizontalAlignment(SwingConstants.RIGHT);
         heading.add(actionStatusLabel, BorderLayout.EAST);
         page.add(heading, BorderLayout.NORTH);

@@ -1,11 +1,10 @@
 package com.cash_shop.user;
 
 import java.awt.BorderLayout;
-import java.awt.Toolkit;
+import java.awt.Dimension;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
-import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -29,7 +28,9 @@ public class UserManagementView extends JFrame {
     /** Opens the window and starts the 5-second refresh. */
     public UserManagementView() {
         setTitle("User Management");
-        setSize(Toolkit.getDefaultToolkit().getScreenSize());
+        setSize(1280, 800);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
+        setMinimumSize(new Dimension(960, 600));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         buildUI();
@@ -53,13 +54,7 @@ public class UserManagementView extends JFrame {
         refresh.addActionListener(event -> refreshUsers());
         close.addActionListener(event -> dispose());
 
-        // Password field styling
-        passwordField.setBackground(StyleManager.BG_INPUT);
-        passwordField.setForeground(StyleManager.TEXT_PRIMARY);
-        passwordField.setCaretColor(StyleManager.ACCENT_PRIMARY);
-        passwordField.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(StyleManager.BORDER_COLOR, 1),
-                BorderFactory.createEmptyBorder(6, 10, 6, 10)));
+        StyleManager.styleInput(passwordField);
 
         JLabel pwdLabel = StyleManager.createLabel("New password:");
         JPanel actions = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 8, 4));

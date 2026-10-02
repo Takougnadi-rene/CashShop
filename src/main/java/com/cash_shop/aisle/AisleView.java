@@ -1,8 +1,8 @@
 package com.cash_shop.aisle;
 
 import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.awt.GridLayout;
-import java.awt.Toolkit;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.ArrayList;
@@ -78,7 +78,9 @@ public class AisleView extends JFrame {
         this.assignedManagerMatricule = assignedManagerMatricule;
         this.accountUsername = accountUsername;
         setTitle(readOnly ? "Aisle Overview" : "Aisle Management");
-        setSize(Toolkit.getDefaultToolkit().getScreenSize());
+        setSize(1280, 800);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
+        setMinimumSize(new Dimension(960, 600));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         buildUI();

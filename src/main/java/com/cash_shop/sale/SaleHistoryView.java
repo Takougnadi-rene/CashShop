@@ -1,12 +1,13 @@
 package com.cash_shop.sale;
 
 import java.awt.BorderLayout;
-import java.awt.Toolkit;
+import java.awt.Dimension;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 
 import javax.swing.DefaultListCellRenderer;
@@ -36,9 +37,11 @@ import com.cash_shop.user.AccessService.Module;
  * only).
  */
 public class SaleHistoryView extends JFrame {
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
     private final SaleDAO saleDAO = new SaleDAO();
     private final DefaultTableModel tableModel = StyleManager.createReadOnlyModel(
-            "Sale #", "Date", "Customer", "Cashier", "Amount (USD)");
+            "Sale #", "Date", "Time", "Customer", "Cashier", "Amount (USD)");
     private final JCheckBox dateEnabled = new JCheckBox("Date");
     private final JSpinner dateFilter = new JSpinner(new SpinnerDateModel());
     private final JComboBox<FilterOption> customerFilter = new JComboBox<>();
@@ -52,7 +55,9 @@ public class SaleHistoryView extends JFrame {
             throw new SecurityException("Only administrators and accountants can view sales history.");
         }
         setTitle("Sales History");
-        setSize(Toolkit.getDefaultToolkit().getScreenSize());
+        setSize(1280, 800);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
+        setMinimumSize(new Dimension(960, 600));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
@@ -137,8 +142,10 @@ public class SaleHistoryView extends JFrame {
             String cashierMatricule = selectedCashier == null ? null : selectedCashier.value();
             for (SaleSummary sale : saleDAO.getSaleSummaries(selectedDate, customerId, cashierMatricule)) {
                 BigDecimal amount = sale.totalAmount() == null ? BigDecimal.ZERO : sale.totalAmount();
-                tableModel.addRow(new Object[] { sale.saleId(), sale.customerName(), sale.cashierName(),
-                        String.format("%.2f", amount) });
+                String saleDate = sale.saleDateTime() == null ? "" : sale.saleDateTime().format(DATE_FORMAT);
+                String saleTime = sale.saleDateTime() == null ? "" : sale.saleDateTime().format(TIME_FORMAT);
+                tableModel.addRow(new Object[] { sale.saleId(), saleDate, saleTime, sale.customerName(),
+                        sale.cashierName(), String.format("%.2f", amount) });
             }
         } catch (IllegalStateException exception) {
             JOptionPane.showMessageDialog(this, exception.getMessage(), "Sales History", JOptionPane.ERROR_MESSAGE);

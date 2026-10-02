@@ -1,7 +1,8 @@
 package com.cash_shop.user;
 
 import java.awt.BorderLayout;
-import java.awt.FlowLayout;
+import java.awt.Dimension;
+
 
 import javax.swing.JButton;
 import javax.swing.JDialog;
@@ -25,8 +26,11 @@ public class AccountManagementView extends JDialog {
         super(owner, "Manage my account", true);
         this.username = username;
         setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
-        setSize(350, 400);
-        setLocationRelativeTo(owner);
+        setBounds(owner.getGraphicsConfiguration().getBounds());
+        setMinimumSize(new Dimension(960, 600));
+        StyleManager.styleInput(currentPassword);
+        StyleManager.styleInput(newPassword);
+        StyleManager.styleInput(confirmPassword);
 
         JPanel form = StyleManager.createForm("Change password");
         StyleManager.addRow(form, 0, "Current password:", currentPassword);
@@ -38,14 +42,10 @@ public class AccountManagementView extends JDialog {
         save.addActionListener(event -> changePassword());
         cancel.addActionListener(event -> dispose());
 
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        actions.add(save);
-        actions.add(cancel);
-
         JPanel page = StyleManager.createPage();
         page.add(StyleManager.createTitle("Manage my account"), BorderLayout.NORTH);
         page.add(form, BorderLayout.CENTER);
-        page.add(actions, BorderLayout.SOUTH);
+        page.add(StyleManager.createButtonBar(save, cancel), BorderLayout.SOUTH);
         setContentPane(page);
     }
 

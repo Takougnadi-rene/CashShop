@@ -11,7 +11,6 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridLayout;
 import java.awt.RenderingHints;
-import java.awt.Toolkit;
 import java.awt.Window;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -38,9 +37,9 @@ import com.cash_shop.product.Product;
 import com.cash_shop.product.ProductDAO;
 import com.cash_shop.product.ProductView;
 import com.cash_shop.product.StockView;
-import com.cash_shop.sale.SaleView;
-import com.cash_shop.sale.SaleHistoryView;
 import com.cash_shop.sale.RegisterSessionDAO;
+import com.cash_shop.sale.SaleHistoryView;
+import com.cash_shop.sale.SaleView;
 import com.cash_shop.supplier.SupplierView;
 import com.cash_shop.user.AccessService;
 import com.cash_shop.user.AccessService.Module;
@@ -77,7 +76,9 @@ public class Home extends JFrame {
         this.role = role;
         this.employeeMatricule = employeeMatricule;
         setTitle("Supermarket Manager");
-        setSize(Toolkit.getDefaultToolkit().getScreenSize());
+        setSize(1280, 800);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
+        setMinimumSize(new Dimension(960, 600));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setBackground(StyleManager.BG_SURFACE);
@@ -450,4 +451,3 @@ public class Home extends JFrame {
         return new SimpleDateFormat("dd/MM/yyyy  |  HH:mm:ss").format(new Date());
     }
 }
-

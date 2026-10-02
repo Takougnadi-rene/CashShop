@@ -9,6 +9,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -25,6 +26,10 @@ import com.cash_shop.product.Product;
 public class SaleDAO {
 
     private static final Logger LOGGER = Logger.getLogger(SaleDAO.class.getName());
+
+    /** Number and total paid for sales made during one calendar day. */
+    public record DailySalesSummary(int saleCount, BigDecimal totalRevenue, BigDecimal estimatedGrossProfit) {
+    }
 
     /** Inserts a sale. */
     public void insertSale(Sale sale) {
@@ -106,6 +111,34 @@ public class SaleDAO {
         return getSaleSummaries(null, null, null);
     }
 
+    /** Returns the sale count, payments and estimated gross profit for the given calendar day. */
+    public DailySalesSummary getDailySalesSummary(LocalDate saleDate) {
+        String sql = "SELECT COUNT(*) AS sale_count, "
+                + "COALESCE(SUM(payment_totals.total_amount), 0) AS total_revenue, "
+                + "COALESCE(SUM(sale_totals.estimated_gross_profit), 0) AS estimated_gross_profit "
+                + "FROM sales s "
+                + "LEFT JOIN (SELECT sale, SUM(amount) AS total_amount FROM payments GROUP BY sale) payment_totals "
+                + "ON payment_totals.sale = s.sale_id "
+                + "LEFT JOIN (SELECT sl.sale_id, SUM(p.selling_price - p.purchase_price) AS estimated_gross_profit "
+                + "FROM sale_lines sl INNER JOIN products p ON p.reference = sl.product "
+                + "GROUP BY sl.sale_id) sale_totals ON sale_totals.sale_id = s.sale_id "
+                + "WHERE s.sale_date >= ? AND s.sale_date < ?";
+        try (Connection connection = DBConnection.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setTimestamp(1, Timestamp.valueOf(saleDate.atStartOfDay()));
+            statement.setTimestamp(2, Timestamp.valueOf(saleDate.plusDays(1).atStartOfDay()));
+            try (ResultSet results = statement.executeQuery()) {
+                if (!results.next()) {
+                    throw new SQLException("Daily sales summary query returned no result.");
+                }
+                return new DailySalesSummary(results.getInt("sale_count"), results.getBigDecimal("total_revenue"),
+                        results.getBigDecimal("estimated_gross_profit"));
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to load today's sales summary.", exception);
+        }
+    }
+
     /**
      * Returns sale summaries (customer, cashier, total paid), optionally filtered by day, customer and
      * cashier.
@@ -113,7 +146,7 @@ public class SaleDAO {
     public List<SaleSummary> getSaleSummaries(LocalDate saleDate, Integer customerId, String cashierMatricule) {
         // Total paid per sale; walk-in customers and unknown cashiers get a default label. Filters are appended
         // only when used.
-        String sql = "SELECT s.sale_id, COALESCE(c.name, 'Walk-in customer') AS customer_name, "
+        String sql = "SELECT s.sale_id, s.sale_date, COALESCE(c.name, 'Walk-in customer') AS customer_name, "
                 + "COALESCE(CONCAT(e.first_name, ' ', e.last_name), 'Unknown cashier') AS cashier_name, "
                 + "COALESCE(SUM(p.amount), 0) AS total_amount "
                 + "FROM sales s "
@@ -131,7 +164,7 @@ public class SaleDAO {
         if (cashierMatricule != null && !cashierMatricule.isBlank()) {
             sql += " AND COALESCE(b.cashier, s.cashier) = ?";
         }
-        sql += " GROUP BY s.sale_id, c.name, e.first_name, e.last_name ORDER BY s.sale_id DESC";
+        sql += " GROUP BY s.sale_id, s.sale_date, c.name, e.first_name, e.last_name ORDER BY s.sale_id DESC";
         List<SaleSummary> summaries = new ArrayList<>();
         try (Connection connection = DBConnection.getConnection();
             PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -149,8 +182,11 @@ public class SaleDAO {
             }
             try (ResultSet results = statement.executeQuery()) {
                 while (results.next()) {
-                    summaries.add(new SaleSummary(results.getInt("sale_id"), results.getDate("sale_date"), results.getString("customer_name"),
-                            results.getString("cashier_name"), results.getBigDecimal("total_amount")));
+                    Timestamp saleTimestamp = results.getTimestamp("sale_date");
+                    summaries.add(new SaleSummary(results.getInt("sale_id"),
+                            saleTimestamp == null ? null : saleTimestamp.toLocalDateTime(),
+                            results.getString("customer_name"), results.getString("cashier_name"),
+                            results.getBigDecimal("total_amount")));
                 }
             }
         } catch (SQLException exception) {

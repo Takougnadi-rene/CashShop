@@ -1,7 +1,7 @@
 package com.cash_shop.customer;
 
 import java.awt.BorderLayout;
-import java.awt.Toolkit;
+import java.awt.Dimension;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.sql.SQLException;
@@ -33,7 +33,9 @@ public class CustomerView extends JFrame {
     /** Opens the window and starts the 5-second automatic refresh. */
     public CustomerView() {
         setTitle("Customer Management");
-        setSize(Toolkit.getDefaultToolkit().getScreenSize());
+        setSize(1280, 800);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
+        setMinimumSize(new Dimension(960, 600));
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLocationRelativeTo(null);
         buildUI();

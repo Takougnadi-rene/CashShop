@@ -6,6 +6,7 @@ import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.FlowLayout;
 import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -14,11 +15,10 @@ import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.RenderingHints;
-import java.awt.Toolkit;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.util.Date;
 import java.util.List;
@@ -30,8 +30,13 @@ import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JSpinner;
+import javax.swing.SpinnerDateModel;
+import javax.swing.Timer;
 
+import com.cash_shop.aisle.AisleDAO;
 import com.cash_shop.employee.Employee.Role;
+import com.cash_shop.employee.EmployeeDAO;
 import com.cash_shop.employee.EmployeeView;
 import com.cash_shop.payment.PaymentDAO;
 import com.cash_shop.product.FreshProduct;
@@ -39,8 +44,11 @@ import com.cash_shop.product.Product;
 import com.cash_shop.product.ProductDAO;
 import com.cash_shop.product.ProductView;
 import com.cash_shop.product.StockView;
+import com.cash_shop.sale.RegisterSessionDAO;
 import com.cash_shop.sale.SaleDAO;
+import com.cash_shop.sale.SaleDAO.DailySalesSummary;
 import com.cash_shop.sale.SaleHistoryView;
+import com.cash_shop.supplier.SupplierDAO;
 import com.cash_shop.user.AccessService;
 import com.cash_shop.user.AccessService.Module;
 
@@ -57,20 +65,40 @@ public class Dashboard extends JFrame {
     // KPI labels
     private final JLabel revenueValueLabel      = kpiLabel("--");
     private final JLabel salesCountValueLabel   = kpiLabel("--");
+    private final JLabel todaySalesCountLabel  = kpiLabel("--");
+    private final JLabel activeCashRegisterCountLabel = kpiLabel("--");
+    private final JLabel todaySalesTotalLabel  = kpiLabel("--");
+    private final JLabel estimatedProfitLabel = kpiLabel("--");
+    private final JLabel averageSaleLabel = kpiLabel("--");
     private final JLabel productCountValueLabel = kpiLabel("--");
     private final JLabel inventoryValueLabel    = kpiLabel("--");
+    private final JLabel aisleCountLabel = kpiLabel("--");
+    private final JLabel employeeCountLabel = kpiLabel("--");
+    private final JLabel deliveredOrderCountLabel = kpiLabel("--");
     private final JLabel expiredCountLabel      = alertLabel("--");
     private final JLabel lowStockCountLabel     = alertLabel("--");
+    private final JSpinner reportDate = new JSpinner(new SpinnerDateModel());
+    private final Timer dailyRefreshTimer = new Timer(60_000, event -> {
+        refreshDailySalesSummary();
+        refreshActiveCashRegisterCount();
+    });
 
     /** Builds the window and loads the figures. */
     public Dashboard(Role role) {
         this.role = role;
         setTitle("Supermarket Manager \u2013 Dashboard");
-        setSize(Toolkit.getDefaultToolkit().getScreenSize());
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         buildUI();
         refreshDashboard();
+        dailyRefreshTimer.start();
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosed(java.awt.event.WindowEvent event) {
+                dailyRefreshTimer.stop();
+            }
+        });
     }
 
     // ---- Construction ----
@@ -109,24 +137,44 @@ public class Dashboard extends JFrame {
         title.setFont(new Font("Segoe UI", Font.BOLD, 18));
         title.setForeground(StyleManager.TEXT_PRIMARY);
 
-        JLabel date = new JLabel("As of " + currentDate());
-        date.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        date.setForeground(StyleManager.TEXT_SECONDARY);
+        JLabel dateLabel = StyleManager.createLabel("Report date:");
+        reportDate.setEditor(new JSpinner.DateEditor(reportDate, "yyyy-MM-dd"));
+        reportDate.setValue(Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        reportDate.setPreferredSize(new Dimension(140, 34));
+        reportDate.setBackground(StyleManager.BG_INPUT);
+        reportDate.setForeground(StyleManager.TEXT_PRIMARY);
+        JSpinner.DateEditor dateEditor = (JSpinner.DateEditor) reportDate.getEditor();
+        StyleManager.styleInput(dateEditor.getTextField());
+        reportDate.addChangeListener(event -> refreshDailySalesSummary());
 
         header.add(title, BorderLayout.WEST);
-        header.add(date,  BorderLayout.EAST);
+        JPanel dateControl = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        dateControl.setOpaque(false);
+        dateControl.add(dateLabel);
+        dateControl.add(reportDate);
+        header.add(dateControl, BorderLayout.EAST);
         return header;
     }
 
-    /** Builds the 2x2 grid of indicator cards. */
+    /** Builds the dashboard indicator cards. */
     private JPanel buildContent() {
-        JPanel content = new JPanel(new GridLayout(2, 2, 16, 16));
+        JPanel content = new JPanel(new GridLayout(3, 5, 16, 16));
         content.setBackground(StyleManager.BG_SURFACE);
         content.setBorder(BorderFactory.createEmptyBorder(20, 20, 12, 20));
 
-        content.add(buildKpiCard("Total Revenue",  revenueValueLabel,    StyleManager.ACCENT_TEAL));
-        content.add(buildKpiCard("Number of Sales",    salesCountValueLabel, StyleManager.ACCENT_PRIMARY));
+        content.add(buildKpiCard("Lifetime Revenue", revenueValueLabel, StyleManager.ACCENT_TEAL));
+        content.add(buildKpiCard("Lifetime Sales", salesCountValueLabel, StyleManager.ACCENT_PRIMARY));
+        content.add(buildKpiCard("Sales on selected date", todaySalesCountLabel, StyleManager.ACCENT_ORANGE));
+        content.add(buildKpiCard("Active cash registers", activeCashRegisterCountLabel,
+                StyleManager.ACCENT_ORANGE));
+        content.add(buildKpiCard("Revenue on selected date", todaySalesTotalLabel, StyleManager.ACCENT_TEAL));
+        content.add(buildKpiCard("Estimated gross profit", estimatedProfitLabel, StyleManager.SUCCESS));
+        content.add(buildKpiCard("Average sale", averageSaleLabel, StyleManager.ACCENT_PRIMARY));
         content.add(buildKpiCard("Product References", productCountValueLabel, new Color(0x8A, 0x63, 0xFF)));
+        content.add(buildKpiCard("Current stock value (cost)", inventoryValueLabel, StyleManager.ACCENT_TEAL));
+        content.add(buildKpiCard("Aisles", aisleCountLabel, StyleManager.ACCENT_ORANGE));
+        content.add(buildKpiCard("Employees", employeeCountLabel, StyleManager.ACCENT_PRIMARY));
+        content.add(buildKpiCard("Orders delivered", deliveredOrderCountLabel, StyleManager.SUCCESS));
         content.add(buildAlertsCard());
 
         return content;
@@ -330,6 +378,8 @@ public class Dashboard extends JFrame {
 
     /** Loads all indicators; a failing query only shows "Unavailable" for its own indicator. */
     private void refreshDashboard() {
+        refreshDailySalesSummary();
+
         try {
             List<Product> products = new ProductDAO().getAllProducts();
             long expiredCount = products.stream()
@@ -341,7 +391,7 @@ public class Dashboard extends JFrame {
                     .filter(p -> p.getStockQuantity() <= LOW_STOCK_LIMIT)
                     .count();
             double stockValue = products.stream()
-                    .mapToDouble(p -> p.getSellingPrice() * p.getStockQuantity())
+                    .mapToDouble(p -> p.getPurchasePrice() * p.getStockQuantity())
                     .sum();
             productCountValueLabel.setText(products.size() + " references");
             inventoryValueLabel.setText(String.format("%.2f USD", stockValue));
@@ -355,6 +405,23 @@ public class Dashboard extends JFrame {
         }
 
         try {
+            aisleCountLabel.setText(Integer.toString(new AisleDAO().getAisleCount()));
+        } catch (IllegalStateException exception) {
+            aisleCountLabel.setText("Unavailable");
+        }
+        try {
+            employeeCountLabel.setText(Integer.toString(new EmployeeDAO().getEmployeeCount()));
+        } catch (IllegalStateException exception) {
+            employeeCountLabel.setText("Unavailable");
+        }
+        try {
+            deliveredOrderCountLabel.setText(Integer.toString(new SupplierDAO().getDeliveredOrderCount()));
+        } catch (IllegalStateException exception) {
+            deliveredOrderCountLabel.setText("Unavailable");
+        }
+        refreshActiveCashRegisterCount();
+
+        try {
             salesCountValueLabel.setText(new SaleDAO().getSalesCount() + " transactions");
         } catch (IllegalStateException exception) {
             salesCountValueLabel.setText("Unavailable");
@@ -363,6 +430,37 @@ public class Dashboard extends JFrame {
             revenueValueLabel.setText(String.format("%.2f USD", new PaymentDAO().getTotalRevenue()));
         } catch (IllegalStateException exception) {
             revenueValueLabel.setText("Unavailable");
+        }
+    }
+
+    /** Refreshes sales and revenue for the date currently selected in the report control. */
+    private void refreshDailySalesSummary() {
+        try {
+            LocalDate selectedDate = ((Date) reportDate.getValue()).toInstant()
+                    .atZone(ZoneId.systemDefault()).toLocalDate();
+            DailySalesSummary summary = new SaleDAO().getDailySalesSummary(selectedDate);
+            todaySalesCountLabel.setText(Integer.toString(summary.saleCount()));
+            todaySalesTotalLabel.setText(String.format("%.2f USD", summary.totalRevenue()));
+            estimatedProfitLabel.setText(String.format("%.2f USD", summary.estimatedGrossProfit()));
+            averageSaleLabel.setText(summary.saleCount() == 0 ? "0.00 USD"
+                    : String.format("%.2f USD", summary.totalRevenue()
+                            .divide(java.math.BigDecimal.valueOf(summary.saleCount()),
+                                    java.math.RoundingMode.HALF_UP)));
+        } catch (IllegalStateException exception) {
+            todaySalesCountLabel.setText("Unavailable");
+            todaySalesTotalLabel.setText("Unavailable");
+            estimatedProfitLabel.setText("Unavailable");
+            averageSaleLabel.setText("Unavailable");
+        }
+    }
+
+    /** Refreshes the number of cash registers with a recent heartbeat. */
+    private void refreshActiveCashRegisterCount() {
+        try {
+            activeCashRegisterCountLabel.setText(Integer.toString(
+                    new RegisterSessionDAO().getActiveSessionCount()));
+        } catch (IllegalStateException exception) {
+            activeCashRegisterCountLabel.setText("Unavailable");
         }
     }
 
@@ -376,11 +474,6 @@ public class Dashboard extends JFrame {
         } catch (DateTimeParseException | NullPointerException exception) {
             return false;
         }
-    }
-
-    /** Formats the current date and time. */
-    private String currentDate() {
-        return new SimpleDateFormat("dd/MM/yyyy  |  HH:mm").format(new Date());
     }
 
     /** Shows the window if it is not null. */

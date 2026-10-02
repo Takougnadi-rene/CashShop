@@ -1,7 +1,7 @@
 package com.cash_shop.product;
 
 import java.awt.BorderLayout;
-import java.awt.Toolkit;
+import java.awt.Dimension;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.ArrayList;
@@ -58,7 +58,9 @@ public class ProductView extends JFrame {
     public ProductView(boolean readOnly) {
         this.readOnly = readOnly;
         setTitle("Product Management");
-        setSize(new java.awt.Dimension(Toolkit.getDefaultToolkit().getScreenSize()));
+        setSize(1280, 800);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
+        setMinimumSize(new Dimension(960, 600));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         buildUI();

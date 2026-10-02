@@ -12,6 +12,21 @@ import com.cash_shop.product.Product;
 
 /** Data access object for aisles and for the aisle/product links stored in the {code aisle_lines} table. */
 public class AisleDAO {
+    /** Returns the number of aisles currently configured. */
+    public int getAisleCount() {
+        String sql = "SELECT COUNT(*) FROM aisles";
+        try (Connection connection = DBConnection.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet results = statement.executeQuery()) {
+            if (!results.next()) {
+                throw new SQLException("Aisle count query returned no result.");
+            }
+            return results.getInt(1);
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to count aisles.", exception);
+        }
+    }
+
     /** Inserts a new aisle into the database. */
     public void addAisle(Aisle aisle) {
         String sql = "INSERT INTO aisles (aisle_code, aisle_name, category, aisle_chief) VALUES (?, ?, ?, ?)";

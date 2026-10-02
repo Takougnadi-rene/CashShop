@@ -11,7 +11,6 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
-//import javax.swing.SwingUtilities;
 
 import com.cash_shop.common.StyleManager;
 import com.cash_shop.customer.Customer;
@@ -50,6 +49,7 @@ public class BillView extends JFrame {
             Double cashReceived, int billNumber) {
         setTitle("Cash Shop - Receipt");
         setSize(500, 800);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         buildUI();

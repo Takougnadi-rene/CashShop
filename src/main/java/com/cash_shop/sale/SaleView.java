@@ -1,12 +1,12 @@
 package com.cash_shop.sale;
 
 import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
-import java.awt.Toolkit;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.sql.SQLException;
@@ -92,8 +92,9 @@ public class SaleView extends JFrame {
         loadCatalog();
         loadCustomers();
         setTitle("Register - Sales Module");
-        setSize(new java.awt.Dimension(Toolkit.getDefaultToolkit().getScreenSize()));
-        setMinimumSize(new java.awt.Dimension(Toolkit.getDefaultToolkit().getScreenSize()));
+        setSize(1280, 800);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
+        setMinimumSize(new Dimension(960, 600));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         buildUI();

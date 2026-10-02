@@ -17,6 +17,21 @@ import com.cash_shop.user.AccountCredentials;
  */
 public class EmployeeDAO {
 
+    /** Returns the number of employees currently registered. */
+    public int getEmployeeCount() {
+        String sql = "SELECT COUNT(*) FROM employees";
+        try (Connection connection = DBConnection.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet results = statement.executeQuery()) {
+            if (!results.next()) {
+                throw new SQLException("Employee count query returned no result.");
+            }
+            return results.getInt(1);
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to count employees.", exception);
+        }
+    }
+
     /** Returns every employee ordered by matricule. */
     public List<Employee> getAllEmployees() {
         List<Employee> employees = new ArrayList<>();

@@ -1,7 +1,7 @@
 package com.cash_shop.employee;
 
 import java.awt.BorderLayout;
-import java.awt.Toolkit;
+import java.awt.Dimension;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.ArrayList;
@@ -60,7 +60,9 @@ public class EmployeeView extends JFrame {
     public EmployeeView(boolean readOnly) {
         this.readOnly = readOnly;
         setTitle("Employee Management");
-        setSize(Toolkit.getDefaultToolkit().getScreenSize());
+        setSize(1280, 800);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
+        setMinimumSize(new Dimension(960, 600));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         buildUI();

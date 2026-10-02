@@ -208,13 +208,7 @@ public class UserView extends JFrame {
     /** Creates a styled text field. */
     private static JTextField createStyledField() {
         JTextField f = new JTextField(20);
-        f.setBackground(StyleManager.BG_INPUT);
-        f.setForeground(StyleManager.TEXT_PRIMARY);
-        f.setCaretColor(StyleManager.ACCENT_PRIMARY);
-        f.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        f.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(StyleManager.BORDER_COLOR, 1),
-                BorderFactory.createEmptyBorder(10, 12, 10, 12)));
+        StyleManager.styleInput(f);
         f.setPreferredSize(new Dimension(300, 42));
         return f;
     }
@@ -222,13 +216,7 @@ public class UserView extends JFrame {
     /** Creates a styled password field. */
     private static JPasswordField createStyledPasswordField() {
         JPasswordField f = new JPasswordField(20);
-        f.setBackground(StyleManager.BG_INPUT);
-        f.setForeground(StyleManager.TEXT_PRIMARY);
-        f.setCaretColor(StyleManager.ACCENT_PRIMARY);
-        f.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        f.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(StyleManager.BORDER_COLOR, 1),
-                BorderFactory.createEmptyBorder(10, 12, 10, 12)));
+        StyleManager.styleInput(f);
         f.setPreferredSize(new Dimension(300, 42));
         return f;
     }
@@ -341,4 +329,3 @@ public class UserView extends JFrame {
         landingWindow.setVisible(true);
     }
 }
-
