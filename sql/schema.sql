@@ -23,6 +23,10 @@ CREATE TABLE IF NOT EXISTS employees (
     )
 ) ENGINE = InnoDB;
 
+
+INSERT INTO employees (matricule, first_name, last_name, email, salary, role)
+VALUES('EMP001', 'Admin', 'Admin', 'admin@gmail.com', 500.00, 'ADMIN');
+
 CREATE TABLE IF NOT EXISTS users (
     login VARCHAR(100) NOT NULL,
     password_user VARCHAR(255) NOT NULL,
@@ -34,6 +38,9 @@ CREATE TABLE IF NOT EXISTS users (
         ON UPDATE CASCADE
         ON DELETE CASCADE
 ) ENGINE = InnoDB;
+
+INSERT INTO users (login, password_user, email)
+VALUES('admin', 'admin', 'admin@gmail.com');
 
 CREATE OR REPLACE VIEW users_role AS
 SELECT u.login, u.password_user, u.email, e.role
