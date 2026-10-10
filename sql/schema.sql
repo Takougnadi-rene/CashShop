@@ -23,6 +23,10 @@ CREATE TABLE IF NOT EXISTS employees (
     )
 ) ENGINE = InnoDB;
 
+
+INSERT INTO employees (matricule, first_name, last_name, email, salary, role)
+VALUES('EMP001', 'Admin', 'Admin', 'admin@gmail.com', 500.00, 'ADMIN');
+
 CREATE TABLE IF NOT EXISTS users (
     login VARCHAR(100) NOT NULL,
     password_user VARCHAR(255) NOT NULL,
@@ -34,6 +38,9 @@ CREATE TABLE IF NOT EXISTS users (
         ON UPDATE CASCADE
         ON DELETE CASCADE
 ) ENGINE = InnoDB;
+
+INSERT INTO users (login, password_user, email)
+VALUES('admin', 'admin', 'admin@gmail.com');
 
 CREATE OR REPLACE VIEW users_role AS
 SELECT u.login, u.password_user, u.email, e.role
@@ -153,7 +160,7 @@ CREATE TABLE IF NOT EXISTS supplier_orders (
         FOREIGN KEY (supplier_code) REFERENCES suppliers (code)
         ON DELETE SET NULL,
     CONSTRAINT chk_supplier_order_status CHECK (
-        status IN ('PENDING', 'APPROUVED', 'DENIDED', 'DELIVERED', 'COMPLETED')
+        status IN ('PENDING', 'APPROUVED', 'DENIDED', 'DELIVERED')
     ),
     CONSTRAINT chk_supplier_order_total CHECK (total_amount >= 0)
 ) ENGINE = InnoDB;
@@ -210,7 +217,7 @@ CREATE TABLE IF NOT EXISTS payments (
         ON DELETE CASCADE,
     CONSTRAINT chk_payment_amount CHECK (amount >= 0),
     CONSTRAINT chk_payment_mode CHECK (
-        payment_mode IN ('CASH', 'CREDIT_CARD', 'CARD', 'MOBILE_PAYMENT', 'MOBILE_MONEY')
+        payment_mode IN ('CASH', 'CREDIT_CARD', 'MOBILE_MONEY')
     )
 ) ENGINE = InnoDB;
 
