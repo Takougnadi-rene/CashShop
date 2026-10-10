@@ -1,7 +1,8 @@
 package com.cash_shop.user;
 
 import java.awt.BorderLayout;
-import java.awt.FlowLayout;
+import java.awt.Dimension;
+
 
 import javax.swing.JButton;
 import javax.swing.JDialog;
@@ -12,6 +13,7 @@ import javax.swing.JPasswordField;
 
 import com.cash_shop.common.StyleManager;
 
+/** Modal dialog where the logged-in user changes his own password. */
 public class AccountManagementView extends JDialog {
     private final UserService userService = new UserService();
     private final String username;
@@ -19,12 +21,16 @@ public class AccountManagementView extends JDialog {
     private final JPasswordField newPassword = new JPasswordField(18);
     private final JPasswordField confirmPassword = new JPasswordField(18);
 
+    /** Builds the dialog for the given user name. */
     public AccountManagementView(JFrame owner, String username) {
         super(owner, "Manage my account", true);
         this.username = username;
         setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
-        setSize(350, 400);
-        setLocationRelativeTo(owner);
+        setBounds(owner.getGraphicsConfiguration().getBounds());
+        setMinimumSize(new Dimension(960, 600));
+        StyleManager.styleInput(currentPassword);
+        StyleManager.styleInput(newPassword);
+        StyleManager.styleInput(confirmPassword);
 
         JPanel form = StyleManager.createForm("Change password");
         StyleManager.addRow(form, 0, "Current password:", currentPassword);
@@ -36,17 +42,14 @@ public class AccountManagementView extends JDialog {
         save.addActionListener(event -> changePassword());
         cancel.addActionListener(event -> dispose());
 
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        actions.add(save);
-        actions.add(cancel);
-
         JPanel page = StyleManager.createPage();
         page.add(StyleManager.createTitle("Manage my account"), BorderLayout.NORTH);
         page.add(form, BorderLayout.CENTER);
-        page.add(actions, BorderLayout.SOUTH);
+        page.add(StyleManager.createButtonBar(save, cancel), BorderLayout.SOUTH);
         setContentPane(page);
     }
 
+    /** Checks that the new passwords match, then changes the password. */
     private void changePassword() {
         String current = new String(currentPassword.getPassword());
         String replacement = new String(newPassword.getPassword());
@@ -67,6 +70,7 @@ public class AccountManagementView extends JDialog {
         }
     }
 
+    /** Displays an error dialog. */
     private void showError(String message) {
         JOptionPane.showMessageDialog(this, message, "Account", JOptionPane.ERROR_MESSAGE);
     }

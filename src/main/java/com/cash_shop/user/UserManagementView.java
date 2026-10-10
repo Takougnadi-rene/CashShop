@@ -1,7 +1,7 @@
 package com.cash_shop.user;
 
 import java.awt.BorderLayout;
-import java.awt.FlowLayout;
+import java.awt.Dimension;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
@@ -11,13 +11,13 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
-import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.Timer;
 import javax.swing.table.DefaultTableModel;
 
 import com.cash_shop.common.StyleManager;
 
+/** Administrator window listing users and resetting their password. */
 public class UserManagementView extends JFrame {
     private final UserService userService = new UserService();
     private final DefaultTableModel tableModel = StyleManager.createReadOnlyModel("Login", "Email");
@@ -25,15 +25,19 @@ public class UserManagementView extends JFrame {
     private final JPasswordField passwordField = new JPasswordField(16);
     private final Timer refreshTimer = new Timer(5000, event -> refreshUsers(false));
 
+    /** Opens the window and starts the 5-second refresh. */
     public UserManagementView() {
         setTitle("User Management");
-        setSize(650, 450);
+        setSize(1280, 800);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
+        setMinimumSize(new Dimension(960, 600));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         buildUI();
         refreshUsers();
         refreshTimer.start();
         addWindowListener(new WindowAdapter() {
+            // Stop the periodic refresh once the window is closed.
             @Override
             public void windowClosed(WindowEvent event) {
                 refreshTimer.stop();
@@ -41,6 +45,7 @@ public class UserManagementView extends JFrame {
         });
     }
 
+    /** Builds the user table and the password-reset bar. */
     private void buildUI() {
         JButton updatePassword = new JButton("Reset Password");
         JButton refresh = new JButton("Refresh");
@@ -49,24 +54,33 @@ public class UserManagementView extends JFrame {
         refresh.addActionListener(event -> refreshUsers());
         close.addActionListener(event -> dispose());
 
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 4));
-        actions.add(new JLabel("New password:"));
+        StyleManager.styleInput(passwordField);
+
+        JLabel pwdLabel = StyleManager.createLabel("New password:");
+        JPanel actions = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 8, 4));
+        actions.setOpaque(false);
+        actions.add(pwdLabel);
         actions.add(passwordField);
         actions.add(updatePassword);
         actions.add(refresh);
         actions.add(close);
+        StyleManager.styleButton(updatePassword);
+        StyleManager.styleButton(refresh);
+        StyleManager.styleButton(close);
 
         JPanel page = StyleManager.createPage();
-        page.add(StyleManager.createTitle("User management"), BorderLayout.NORTH);
-        page.add(new JScrollPane(table), BorderLayout.CENTER);
+        page.add(StyleManager.createTitle("User Management"), BorderLayout.NORTH);
+        page.add(StyleManager.createScrollPane(table), BorderLayout.CENTER);
         page.add(actions, BorderLayout.SOUTH);
         setContentPane(page);
     }
 
+    /** Reloads the users and shows errors. */
     private void refreshUsers() {
         refreshUsers(true);
     }
 
+    /** Reloads the users, keeping the selection (silent for the periodic refresh). */
     private void refreshUsers(boolean showError) {
         try {
             int selectedRow = table.getSelectedRow();
@@ -91,6 +105,7 @@ public class UserManagementView extends JFrame {
         }
     }
 
+    /** Sets the typed password on the selected user. */
     private void resetPassword() {
         int selectedRow = table.getSelectedRow();
         if (selectedRow < 0) {
@@ -111,6 +126,7 @@ public class UserManagementView extends JFrame {
         }
     }
 
+    /** Displays an error dialog. */
     private void showError(String message) {
         JOptionPane.showMessageDialog(this, message, "User Management", JOptionPane.ERROR_MESSAGE);
     }

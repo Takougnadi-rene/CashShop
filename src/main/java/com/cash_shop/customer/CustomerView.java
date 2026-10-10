@@ -1,6 +1,7 @@
 package com.cash_shop.customer;
 
 import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.sql.SQLException;
@@ -9,14 +10,14 @@ import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JTable;
-import javax.swing.Timer;
 import javax.swing.JTextField;
+import javax.swing.Timer;
 import javax.swing.table.DefaultTableModel;
 
 import com.cash_shop.common.StyleManager;
 
+/** Swing window to add, list and delete customers and to give them loyalty points. */
 public class CustomerView extends JFrame {
     private final CustomerDAO customerDAO = new CustomerDAO();
     private final JTextField idField = StyleManager.createField();
@@ -29,15 +30,19 @@ public class CustomerView extends JFrame {
     private final JTable table = StyleManager.createTable(tableModel);
     private final Timer refreshTimer = new Timer(5000, event -> refreshTable(false));
 
+    /** Opens the window and starts the 5-second automatic refresh. */
     public CustomerView() {
         setTitle("Customer Management");
-        setSize(850, 500);
+        setSize(1280, 800);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
+        setMinimumSize(new Dimension(960, 600));
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLocationRelativeTo(null);
         buildUI();
         refreshTable();
         refreshTimer.start();
         addWindowListener(new WindowAdapter() {
+            // Stop the periodic refresh once the window is closed.
             @Override
             public void windowClosed(WindowEvent event) {
                 refreshTimer.stop();
@@ -45,6 +50,7 @@ public class CustomerView extends JFrame {
         });
     }
 
+    /** Builds the form, the customer table and the button bar. */
     private void buildUI() {
         JPanel form = StyleManager.createForm("Customer details");
         StyleManager.addRow(form, 0, "Customer ID:", idField);
@@ -67,12 +73,13 @@ public class CustomerView extends JFrame {
         JPanel page = StyleManager.createPage();
         page.add(StyleManager.createTitle("Customers"), BorderLayout.NORTH);
         page.add(left, BorderLayout.WEST);
-        page.add(new JScrollPane(table), BorderLayout.CENTER);
+        page.add(StyleManager.createScrollPane(table), BorderLayout.CENTER);
         page.add(StyleManager.createButtonBar(addButton, pointsButton, deleteButton, closeButton),
                 BorderLayout.SOUTH);
         setContentPane(page);
     }
 
+    /** Validates the form and inserts the customer. */
     private void addCustomer() {
         try {
             int id = Integer.parseInt(idField.getText().trim());
@@ -95,6 +102,7 @@ public class CustomerView extends JFrame {
         }
     }
 
+    /** Asks for a number of points and adds them to the selected customer. */
     private void addLoyaltyPoints() {
         int row = table.getSelectedRow();
         if (row < 0) {
@@ -119,6 +127,7 @@ public class CustomerView extends JFrame {
         }
     }
 
+    /** Deletes the selected customer after confirmation. */
     private void deleteCustomer() {
         int row = table.getSelectedRow();
         if (row < 0) {
@@ -137,10 +146,15 @@ public class CustomerView extends JFrame {
         }
     }
 
+    /** Reloads the table and shows errors. */
     private void refreshTable() {
         refreshTable(true);
     }
 
+    /**
+     * Reloads the table, keeping the selection; errors are only shown when requested (silent for the periodic
+     * refresh).
+     */
     private void refreshTable(boolean showError) {
         int selectedRow = table.getSelectedRow();
         Integer selectedCustomerId = selectedRow < 0 ? null
@@ -171,6 +185,7 @@ public class CustomerView extends JFrame {
         }
     }
 
+    /** Empties all the form fields. */
     private void clearForm() {
         idField.setText("");
         nameField.setText("");
@@ -179,6 +194,7 @@ public class CustomerView extends JFrame {
         spentField.setText("");
     }
 
+    /** Displays an error dialog. */
     private void showError(String message) {
         JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
     }

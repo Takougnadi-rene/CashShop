@@ -9,8 +9,14 @@ import java.util.List;
 
 import com.cash_shop.common.DBConnection;
 
+/**
+ * Data access object for products. The base data lives in {@code products}; each specialised type has its own
+ * table (electronic_products, fresh_products, artisanal_products). Reads go through the {@code all_products}
+ * view.
+ */
 public class ProductDAO {
 
+    /** Inserts the common data of a product. */
     public void insertProduct(Product product) {
         String sql = "INSERT INTO products (reference, designation, purchase_price, selling_price, stock_quantity) VALUES (?, ?, ?, ?, ?)";
         execute(sql, statement -> {
@@ -22,6 +28,7 @@ public class ProductDAO {
         });
     }
 
+    /** Inserts the electronic-specific data (brand, warranty). */
     public void insertElectronicProduct(ElectronicProduct product) {
         String sql = "INSERT INTO electronic_products (reference, brand, warranty) VALUES (?, ?, ?)";
         execute(sql, statement -> {
@@ -31,6 +38,7 @@ public class ProductDAO {
         });
     }
 
+    /** Inserts the fresh-specific data (expiration date, storage temperature). */
     public void insertFreshProduct(FreshProduct product) {
         String sql = "INSERT INTO fresh_products (reference, expiration_date, storage_temperature) VALUES (?, ?, ?)";
         execute(sql, statement -> {
@@ -40,6 +48,7 @@ public class ProductDAO {
         });
     }
 
+    /** Inserts the artisanal type. */
     public void insertArtisanalProduct(ArtisanalProduct product) {
         String sql = "INSERT INTO artisanal_products (reference, type) VALUES (?,?)";
         execute(sql, statement -> {
@@ -48,6 +57,7 @@ public class ProductDAO {
         });
     }
 
+    /** Updates the common data of a product. */
     public void updateProduct(Product product) {
         String sql = "UPDATE products SET designation = ?, purchase_price = ?, "
                 + "selling_price = ?, stock_quantity = ? WHERE reference = ?";
@@ -60,6 +70,7 @@ public class ProductDAO {
         });
     }
 
+    /** Updates the electronic-specific data. */
     public void updateElectronicProduct(ElectronicProduct product) {
         String sql = "UPDATE electronic_products SET brand = ?, warranty = ? WHERE reference = ?";
         execute(sql, statement -> {
@@ -69,6 +80,7 @@ public class ProductDAO {
         });
     }
 
+    /** Updates the fresh-specific data. */
     public void updateFreshProduct(FreshProduct product) {
         String sql = "UPDATE fresh_products SET expiration_date = ?, storage_temperature = ? WHERE reference = ?";
         execute(sql, statement -> {
@@ -78,6 +90,7 @@ public class ProductDAO {
         });
     }
 
+    /** Updates the artisanal type. */
     public void updateArtisanalProduct(ArtisanalProduct product) {
         String sql = "UPDATE artisanal_products SET type = ? WHERE reference = ?";
         execute(sql, statement -> {
@@ -86,53 +99,31 @@ public class ProductDAO {
         });
     }
 
+    /** Deletes the product row. */
     public void deleteProduct(Product product) {
         String sql = "DELETE FROM products WHERE reference = ?";
         execute(sql, statement -> statement.setInt(1, product.getReference()));
     }
 
+    /** Deletes the electronic-specific row. */
     public void deleteElectronicProduct(ElectronicProduct product) {
         String sql = "DELETE FROM electronic_products WHERE reference = ?";
         execute(sql, statement -> statement.setInt(1, product.getReference()));
     }
 
+    /** Deletes the fresh-specific row. */
     public void deleteFreshProduct(FreshProduct product) {
         String sql = "DELETE FROM fresh_products WHERE reference = ?";
         execute(sql, statement -> statement.setInt(1, product.getReference()));
     }
 
+    /** Deletes the artisanal-specific row. */
     public void deleteArtisanalProduct(ArtisanalProduct product) {
         String sql = "DELETE FROM artisanal_products WHERE reference = ?";
         execute(sql, statement -> statement.setInt(1, product.getReference()));
     }
 
-    /*
-     * public void addStockQuantity(int reference, int stockQuantityToAdd) {
-     * String sql = "UPDATE products SET stock_quantity = ? WHERE reference = ?";
-     * execute(sql, statement -> {
-     * int currentStock = getStockQuantity(reference);
-     * statement.setInt(1, currentStock + stockQuantityToAdd);
-     * statement.setInt(2, reference);
-     * if (stockQuantityToAdd < 0) {
-     * throw new IllegalStateException("Stock quantity cannot be negative.");
-     * }
-     * });
-     * }
-     * 
-     * public void removeStockQuantity(int reference, int stockQuantityToRemove) {
-     * String sql = "UPDATE products SET stock_quantity = ? WHERE reference = ?";
-     * execute(sql, statement -> {
-     * int currentStock = getStockQuantity(reference);
-     * statement.setInt(1, currentStock - stockQuantityToRemove);
-     * statement.setInt(2, reference);
-     * if (stockQuantityToRemove < 0) {
-     * throw new IllegalStateException("Stock quantity cannot be negative.");
-     * }
-     * });
-     * }
-     * 
-     */
-
+    /** Changes only the selling price of a product. */
     public void setSellingPrice(int reference, double sellingPrice) {
         String sql = "UPDATE products SET selling_price = ? WHERE reference = ?";
         execute(sql, statement -> {
@@ -154,11 +145,12 @@ public class ProductDAO {
                     products.add(mapProduct(resultSet));
             }
         } catch (SQLException exception) {
-            throw new IllegalStateException("Impossible d'acceder a la base de donnees.", exception);
+            throw new IllegalStateException("Unable to access the database.", exception);
         }
         return products;
     }
 
+    /** Converts the current row of the {@code all_products} view into the right Product subclass. */
     private Product mapProduct(ResultSet resultSet) throws SQLException {
         int reference = resultSet.getInt("reference");
         String designation = resultSet.getString("designation");
@@ -182,6 +174,10 @@ public class ProductDAO {
         return new Product(reference, designation, purchasePrice, sellingPrice, stockQuantity);
     }
 
+    /**
+     * Returns the product with the given reference; throws IllegalArgumentException when it does not exist.
+     */
+    
     public ArrayList<Product> getProductById(int reference) {
         String sql = "SELECT * FROM all_products WHERE reference = ?";
         ArrayList<Product> products = new ArrayList<>();
@@ -194,7 +190,7 @@ public class ProductDAO {
                 }
             }
         } catch (SQLException exception) {
-            throw new IllegalStateException("Impossible d'acceder a la base de donnees.", exception);
+            throw new IllegalStateException("Unable to access the database.", exception);
         }
         if (products.isEmpty()) {
             throw new IllegalArgumentException("Product not found: " + reference);
@@ -202,6 +198,7 @@ public class ProductDAO {
         return products;
     }
 
+    /** Returns the products whose designation contains the given text. */
     public ArrayList<Product> getProductsByName(String name) {
         String sql = "SELECT * FROM all_products WHERE designation LIKE ?";
         ArrayList<Product> products = new ArrayList<>();
@@ -214,29 +211,12 @@ public class ProductDAO {
                 }
             }
         } catch (SQLException exception) {
-            throw new IllegalStateException("Impossible d'acceder a la base de donnees.", exception);
+            throw new IllegalStateException("Unable to access the database.", exception);
         }
         return products;
     }
 
-    /*
-     * private int getStockQuantity(int reference) {
-     * String sql = "SELECT stock_quantity FROM products WHERE reference = ?";
-     * try (Connection connection = DBConnection.getConnection();
-     * PreparedStatement statement = connection.prepareStatement(sql)) {
-     * statement.setInt(1, reference);
-     * try (ResultSet resultSet = statement.executeQuery()) {
-     * if (resultSet.next()) {
-     * return resultSet.getInt("stock_quantity");
-     * }
-     * }
-     * } catch (SQLException exception) {
-     * throw new IllegalStateException("Impossible d'acceder a la base de donnees.",
-     * exception);
-     * }
-     * throw new IllegalArgumentException("Product not found: " + reference);
-     * }
-     */
+    /** Increases the stock of a product. */
     public void addQuantity(int reference, int quantity) {
         String sql = "UPDATE products SET stock_quantity = stock_quantity + ? WHERE reference = ?";
         execute(sql, statement -> {
@@ -245,6 +225,7 @@ public class ProductDAO {
         });
     }
 
+    /** Decreases the stock of a product. */
     public void removeQuantity(int reference, int quantity) {
         String sql = "UPDATE products SET stock_quantity = stock_quantity - ? WHERE reference = ?";
         execute(sql, statement -> {
@@ -253,16 +234,18 @@ public class ProductDAO {
         });
     }
 
+    /** Runs an INSERT/UPDATE/DELETE statement after binding its parameters. */
     private void execute(String sql, StatementParameters parameters) {
         try (Connection connection = DBConnection.getConnection();
                 PreparedStatement statement = connection.prepareStatement(sql)) {
             parameters.set(statement);
             statement.executeUpdate();
         } catch (SQLException exception) {
-            throw new IllegalStateException("Impossible d'acceder a la base de donnees.", exception);
+            throw new IllegalStateException("Unable to access the database.", exception);
         }
     }
 
+    /** Callback that binds the parameters of a prepared statement. */
     @FunctionalInterface
     private interface StatementParameters {
         void set(PreparedStatement statement) throws SQLException;

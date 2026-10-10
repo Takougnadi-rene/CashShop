@@ -9,10 +9,12 @@ import java.util.logging.Logger;
 
 import com.cash_shop.common.DBConnection;
 
+/** Data access object for the {@code payments} table. */
 public class PaymentDAO {
 
     private static final Logger LOGGER = Logger.getLogger(PaymentDAO.class.getName());
 
+    /** Inserts a payment (errors are logged). */
     public void insertPayment(Payment payment) {
         String sql = "INSERT INTO payments(payment_number, amount, payment_mode, payment_date, sale) VALUES (?, ?, ?, ?, ?)";
         try (Connection connection = DBConnection.getConnection();
@@ -28,6 +30,7 @@ public class PaymentDAO {
         }
     }
 
+    /** Returns the sum of all payment amounts. */
     public double getTotalRevenue() {
         String sql = "SELECT COALESCE(SUM(amount), 0) FROM payments";
         try (Connection connection = DBConnection.getConnection();

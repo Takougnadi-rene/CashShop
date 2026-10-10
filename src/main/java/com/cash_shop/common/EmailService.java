@@ -11,8 +11,17 @@ import jakarta.mail.Transport;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 
+/**
+ * Sends e-mails (currently the credentials of a newly created employee account) through an SMTP server
+ * configured with CASH_SHOP_SMTP_* environment variables.
+ */
 public class EmailService {
+    /**
+     * Sends the login and temporary password to the employee. Returns false when SMTP is not configured or the
+     * e-mail cannot be sent.
+     */
     public boolean sendEmployeeCredentials(String email, String login, String password) {
+        // SMTP settings come from environment variables; when one is missing, no e-mail is sent.
         String host = System.getenv("CASH_SHOP_SMTP_HOST");
         String username = System.getenv("CASH_SHOP_SMTP_USERNAME");
         String smtpPassword = System.getenv("CASH_SHOP_SMTP_PASSWORD");
@@ -31,6 +40,7 @@ public class EmailService {
         properties.put("mail.smtp.timeout", "10000");
 
         Session session = Session.getInstance(properties, new Authenticator() {
+            // Credentials used to authenticate against the SMTP server.
             @Override
             protected PasswordAuthentication getPasswordAuthentication() {
                 return new PasswordAuthentication(username, smtpPassword);
@@ -51,6 +61,7 @@ public class EmailService {
         }
     }
 
+    /** Null-safe check for empty or whitespace-only strings. */
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
     }

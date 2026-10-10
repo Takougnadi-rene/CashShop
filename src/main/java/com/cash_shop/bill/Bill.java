@@ -11,6 +11,10 @@ import com.cash_shop.product.Product;
 import com.cash_shop.sale.Sale;
 import com.cash_shop.sale.SaleService;
 
+/**
+ * A purchase receipt: number, date, customer (may be null for walk-in customers), cashier and the related
+ * sale.
+ */
 public class Bill {
     private int billNumber;
     private Date billDate;
@@ -18,6 +22,7 @@ public class Bill {
     private Employee cashier;
     private Sale sale;
 
+    /** Creates a bill for a sale. */
     public Bill(int billNumber, Date billDate, Customer customer, Employee cashier, Sale sale) {
         this.billNumber = billNumber;
         this.billDate = billDate;
@@ -51,8 +56,11 @@ public class Bill {
         sb.append(String.format("%-20s %5s %15s\n", "PRODUCT", "QTY", "PRICE ($)"));
         sb.append("------------------------------------------------\n");
 
+        // The sale holds one entry per unit: group them by reference to print one line per product with its
+        // quantity.
         Map<Integer, Product> productsByReference = new LinkedHashMap<>();
         Map<Integer, Integer> quantitiesByReference = new LinkedHashMap<>();
+        
         for (Product product : sale.getProductsList()) {
             productsByReference.putIfAbsent(product.getReference(), product);
             quantitiesByReference.merge(product.getReference(), 1, Integer::sum);

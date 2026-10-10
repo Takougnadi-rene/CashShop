@@ -2,21 +2,26 @@ package com.cash_shop.user;
 
 import java.util.List;
 
+/** Business operations on users: authentication, registration and password changes (with validation). */
 public class UserService {
     private final UserDAO userDAO = new UserDAO();
 
+    /** Returns the authenticated user, or null. */
     public User authenticate(String username, String password) {
         return userDAO.authenticate(username, password);
     }
 
+    /** Tells whether the credentials are valid. */
     public boolean login(String username, String password_user) {
         return authenticate(username, password_user) != null;
     }
 
+    /** Returns all users. */
     public List<User> getAllUsers() {
         return userDAO.findAll();
     }
 
+    /** Resets a user's password (minimum 8 characters). */
     public boolean updatePassword(String username, String password) {
         if (username == null || username.trim().isEmpty()) {
             throw new IllegalArgumentException("Select a user first.");
@@ -27,6 +32,7 @@ public class UserService {
         return userDAO.updatePassword(username, password);
     }
 
+    /** Changes the password of the signed-in user after validating the current and the new password. */
     public boolean changePassword(String username, String currentPassword, String newPassword) {
         if (username == null || username.trim().isEmpty()) {
             throw new IllegalArgumentException("The signed-in user is required.");
@@ -43,14 +49,8 @@ public class UserService {
         return userDAO.changePassword(username, currentPassword, newPassword);
     }
 
+    /** Not supported without an employee e-mail: always throws. */
     public boolean register(String username, String password) {
         throw new IllegalArgumentException("An employee email is required to register a user.");
-    }
-
-    public boolean register(String username, String password, String employeeEmail) {
-        if (employeeEmail == null || employeeEmail.trim().isEmpty()) return false;
-        if (userDAO.findByUsername(username) != null) return false;
-        String hash = password;
-        return userDAO.insert(username, hash, employeeEmail);
     }
 }

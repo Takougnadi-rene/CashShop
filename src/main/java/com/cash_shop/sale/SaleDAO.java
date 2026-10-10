@@ -1,5 +1,7 @@
 package com.cash_shop.sale;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -7,6 +9,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -19,8 +22,16 @@ import com.cash_shop.customer.Customer;
 import com.cash_shop.payment.Payment;
 import com.cash_shop.product.Product;
 
+/** Data access object for sales, sale lines, summaries and the transactional saving of a completed sale. */
 public class SaleDAO {
 
+    private static final Logger LOGGER = Logger.getLogger(SaleDAO.class.getName());
+
+    /** Number and total paid for sales made during one calendar day. */
+    public record DailySalesSummary(int saleCount, BigDecimal totalRevenue, BigDecimal estimatedGrossProfit) {
+    }
+
+    /** Inserts a sale. */
     public void insertSale(Sale sale) {
         String sql = "INSERT INTO sales(sale_id, sale_date, cashier) VALUES (?, ?, ?)";
         try (Connection connection = DBConnection.getConnection();
@@ -30,10 +41,11 @@ public class SaleDAO {
             ps.setString(3, sale.getCashier().getMatricule());
             ps.executeUpdate();
         } catch (SQLException e) {
-           // e.printStackTrace();
+            LOGGER.log(Level.WARNING, "Database operation failed.", e);
         }
     }
 
+    /** Updates date and cashier of a sale. */
     public void updateSale(Sale sale) {
         String sql = "UPDATE sales SET sale_date = ?, cashier = ? WHERE sale_id = ?";
         try (Connection connection = DBConnection.getConnection();
@@ -43,10 +55,11 @@ public class SaleDAO {
             ps.setInt(3, sale.getSaleId());
             ps.executeUpdate();
         } catch (SQLException e) {
-           // e.printStackTrace();
+            LOGGER.log(Level.WARNING, "Database operation failed.", e);
         }
     }
 
+    /** Deletes a sale. */
     public void deleteSale(int saleId) {
         String sql = "DELETE FROM sales WHERE sale_id = ?";
         try (Connection connection = DBConnection.getConnection();
@@ -54,25 +67,29 @@ public class SaleDAO {
             ps.setInt(1, saleId);
             ps.executeUpdate();
         } catch (SQLException e) {
-            //e.printStackTrace();
+            LOGGER.log(Level.WARNING, "Database operation failed.", e);
         }
     }
 
+    /** Returns the sale with the given id, or null when it does not exist. */
     public Sale getSaleById(int saleId) {
         String sql = "SELECT sale_id, sale_date, cashier FROM sales WHERE sale_id = ?";
         Sale sale = null;
         try (Connection connection = DBConnection.getConnection();
-                PreparedStatement statement = connection.prepareStatement(sql);
-                ResultSet results = statement.executeQuery()) {
-            if (results.next()) {
-                sale = new Sale(results.getInt("sale_id"), results.getTimestamp("sale_date").toLocalDateTime(), null);
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, saleId);
+            try (ResultSet results = statement.executeQuery()) {
+                if (results.next()) {
+                    sale = new Sale(results.getInt("sale_id"), results.getTimestamp("sale_date").toLocalDateTime(), null);
+                }
             }
         } catch (SQLException e) {
-           // e.printStackTrace();
+            LOGGER.log(Level.WARNING, "Database operation failed.", e);
         }
         return sale;
     }
 
+    /** Returns all sales ordered by id. */
     public List<Sale> getAllSales() {
         String sql = "SELECT sale_id, sale_date, cashier FROM sales ORDER BY sale_id";
         List<Sale> sales = new ArrayList<>();
@@ -84,17 +101,52 @@ public class SaleDAO {
                 sales.add(sale);
             }
         } catch (SQLException e) {
-           // e.printStackTrace();
+            LOGGER.log(Level.WARNING, "Database operation failed.", e);
         }
         return sales;
     }
 
+    /** Returns the summary of every sale (no filter). */
     public List<SaleSummary> getSaleSummaries() {
         return getSaleSummaries(null, null, null);
     }
 
+    /** Returns the sale count, payments and estimated gross profit for the given calendar day. */
+    public DailySalesSummary getDailySalesSummary(LocalDate saleDate) {
+        String sql = "SELECT COUNT(*) AS sale_count, "
+                + "COALESCE(SUM(payment_totals.total_amount), 0) AS total_revenue, "
+                + "COALESCE(SUM(sale_totals.estimated_gross_profit), 0) AS estimated_gross_profit "
+                + "FROM sales s "
+                + "LEFT JOIN (SELECT sale, SUM(amount) AS total_amount FROM payments GROUP BY sale) payment_totals "
+                + "ON payment_totals.sale = s.sale_id "
+                + "LEFT JOIN (SELECT sl.sale_id, SUM(p.selling_price - p.purchase_price) AS estimated_gross_profit "
+                + "FROM sale_lines sl INNER JOIN products p ON p.reference = sl.product "
+                + "GROUP BY sl.sale_id) sale_totals ON sale_totals.sale_id = s.sale_id "
+                + "WHERE s.sale_date >= ? AND s.sale_date < ?";
+        try (Connection connection = DBConnection.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setTimestamp(1, Timestamp.valueOf(saleDate.atStartOfDay()));
+            statement.setTimestamp(2, Timestamp.valueOf(saleDate.plusDays(1).atStartOfDay()));
+            try (ResultSet results = statement.executeQuery()) {
+                if (!results.next()) {
+                    throw new SQLException("Daily sales summary query returned no result.");
+                }
+                return new DailySalesSummary(results.getInt("sale_count"), results.getBigDecimal("total_revenue"),
+                        results.getBigDecimal("estimated_gross_profit"));
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to load today's sales summary.", exception);
+        }
+    }
+
+    /**
+     * Returns sale summaries (customer, cashier, total paid), optionally filtered by day, customer and
+     * cashier.
+     */
     public List<SaleSummary> getSaleSummaries(LocalDate saleDate, Integer customerId, String cashierMatricule) {
-        String sql = "SELECT s.sale_id, COALESCE(c.name, 'Walk-in customer') AS customer_name, "
+        // Total paid per sale; walk-in customers and unknown cashiers get a default label. Filters are appended
+        // only when used.
+        String sql = "SELECT s.sale_id, s.sale_date, COALESCE(c.name, 'Walk-in customer') AS customer_name, "
                 + "COALESCE(CONCAT(e.first_name, ' ', e.last_name), 'Unknown cashier') AS cashier_name, "
                 + "COALESCE(SUM(p.amount), 0) AS total_amount "
                 + "FROM sales s "
@@ -112,10 +164,11 @@ public class SaleDAO {
         if (cashierMatricule != null && !cashierMatricule.isBlank()) {
             sql += " AND COALESCE(b.cashier, s.cashier) = ?";
         }
-        sql += " GROUP BY s.sale_id, c.name, e.first_name, e.last_name ORDER BY s.sale_id DESC";
+        sql += " GROUP BY s.sale_id, s.sale_date, c.name, e.first_name, e.last_name ORDER BY s.sale_id DESC";
         List<SaleSummary> summaries = new ArrayList<>();
         try (Connection connection = DBConnection.getConnection();
             PreparedStatement statement = connection.prepareStatement(sql)) {
+            // Bind the optional filters in the same order as they were appended to the SQL.
             int parameter = 1;
             if (saleDate != null) {
                 statement.setTimestamp(parameter++, Timestamp.valueOf(saleDate.atStartOfDay()));
@@ -129,8 +182,11 @@ public class SaleDAO {
             }
             try (ResultSet results = statement.executeQuery()) {
                 while (results.next()) {
-                    summaries.add(new SaleSummary(results.getInt("sale_id"), results.getString("customer_name"),
-                            results.getString("cashier_name"), results.getBigDecimal("total_amount")));
+                    Timestamp saleTimestamp = results.getTimestamp("sale_date");
+                    summaries.add(new SaleSummary(results.getInt("sale_id"),
+                            saleTimestamp == null ? null : saleTimestamp.toLocalDateTime(),
+                            results.getString("customer_name"), results.getString("cashier_name"),
+                            results.getBigDecimal("total_amount")));
                 }
             }
         } catch (SQLException exception) {
@@ -139,6 +195,10 @@ public class SaleDAO {
         return summaries;
     }
 
+    /**
+     * Saves a completed sale atomically: sale, sale lines, stock decrease, payment, bill and customer total.
+     * If anything fails, everything is rolled back. Returns the new bill number.
+     */
     public int persistCompletedSale(Sale sale, Customer customer, Payment.PaymentMode paymentMode) {
         if (sale == null || sale.getProductsList() == null || sale.getProductsList().isEmpty()) {
             throw new IllegalArgumentException("A completed sale must contain at least one product.");
@@ -147,6 +207,7 @@ public class SaleDAO {
             throw new IllegalArgumentException("Payment method is required.");
         }
 
+        // Use a single timestamp for the sale, the payment and the bill so that they match exactly.
         LocalDateTime validationTime = LocalDateTime.now();
         Timestamp validationTimestamp = Timestamp.valueOf(validationTime);
         sale.setSaleDate(validationTime);
@@ -154,12 +215,16 @@ public class SaleDAO {
         try (Connection connection = DBConnection.getConnection()) {
             boolean originalAutoCommit = connection.getAutoCommit();
             int originalIsolation = connection.getTransactionIsolation();
+            // Serializable isolation + manual commit: the whole sale is saved atomically and concurrent
+            // registers cannot get the same numbers.
             connection.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
             connection.setAutoCommit(false);
             try {
+                // Bill and payment numbers are not auto-increment columns: compute the next free numbers.
                 int billNumber = nextId(connection, "bills", "bill_number");
                 int paymentNumber = nextId(connection, "payments", "payment_number");
 
+                // 1) Insert the sale and read its generated id.
                 String saleSql = "INSERT INTO sales(sale_date, cashier) VALUES (?, ?)";
                 try (PreparedStatement statement = connection.prepareStatement(saleSql,
                         Statement.RETURN_GENERATED_KEYS)) {
@@ -179,6 +244,7 @@ public class SaleDAO {
                 }
                 int saleId = sale.getSaleId();
 
+                // 2) Insert one sale line per unit sold, and count the quantity sold of each product.
                 Map<Integer, Integer> quantities = new LinkedHashMap<>();
                 String lineSql = "INSERT INTO sale_lines(sale_id, product) VALUES (?, ?)";
                 try (PreparedStatement statement = connection.prepareStatement(lineSql)) {
@@ -191,6 +257,8 @@ public class SaleDAO {
                     statement.executeBatch();
                 }
 
+                // 3) Decrease the stock. The "stock_quantity >= ?" condition prevents negative stock if another
+                // register sold the same product meanwhile.
                 String stockSql = "UPDATE products SET stock_quantity = stock_quantity - ? "
                         + "WHERE reference = ? AND stock_quantity >= ?";
                 try (PreparedStatement statement = connection.prepareStatement(stockSql)) {
@@ -205,6 +273,7 @@ public class SaleDAO {
                     }
                 }
 
+                // 4) Insert the payment (the database uses MOBILE_MONEY for the MOBILE_PAYMENT mode).
                 double total = sale.getProductsList().stream().mapToDouble(Product::getSellingPrice).sum();
                 String paymentSql = "INSERT INTO payments(payment_number, amount, payment_mode, payment_date, sale) "
                         + "VALUES (?, ?, ?, ?, ?)";
@@ -218,6 +287,7 @@ public class SaleDAO {
                     statement.executeUpdate();
                 }
 
+                // 5) Insert the bill (customer and cashier are optional).
                 String billSql = "INSERT INTO bills(bill_number, bill_date, customer, cashier, sale) "
                     + "VALUES (?, ?, ?, ?, ?)";
                 try (PreparedStatement statement = connection.prepareStatement(billSql)) {
@@ -237,6 +307,7 @@ public class SaleDAO {
                     statement.executeUpdate();
                 }
 
+                // 6) Add the amount to the total spent by the customer.
                 if (customer != null) {
                     try (PreparedStatement statement = connection.prepareStatement(
                             "UPDATE customers SET total_spent = total_spent + ? WHERE customer_id = ?")) {
@@ -248,6 +319,7 @@ public class SaleDAO {
                     }
                 }
 
+                // Everything succeeded: make the changes permanent.
                 connection.commit();
                 return billNumber;
             } catch (SQLException | RuntimeException exception) {
@@ -267,6 +339,7 @@ public class SaleDAO {
         }
     }
 
+    /** Returns the next free value (MAX + 1) of an id column. */
     private int nextId(Connection connection, String table, String column) throws SQLException {
         String sql = "SELECT COALESCE(MAX(" + column + "), 0) + 1 FROM " + table;
         try (PreparedStatement statement = connection.prepareStatement(sql);
@@ -278,6 +351,7 @@ public class SaleDAO {
         }
     }
 
+    /** Returns the number of sales. */
     public int getSalesCount() {
         String sql = "SELECT COUNT(*) FROM sales";
         try (Connection connection = DBConnection.getConnection();
@@ -298,10 +372,11 @@ public class SaleDAO {
             ps.setInt(2, product.getReference());
             ps.executeUpdate();
         } catch (SQLException e) {
-           // e.printStackTrace();
+            LOGGER.log(Level.WARNING, "Database operation failed.", e);
         }
     }
 
+    /** Removes the sale lines of a product from a sale. */
     public void removeProductFromSale(int saleId, Product product) {
         String sql = "DELETE FROM sale_lines WHERE sale_id = ? AND product = ?";
         try (Connection connection = DBConnection.getConnection();
@@ -310,10 +385,11 @@ public class SaleDAO {
             ps.setInt(2, product.getReference());
             ps.executeUpdate();
         } catch (SQLException e) {
-            //e.printStackTrace();
+            LOGGER.log(Level.WARNING, "Database operation failed.", e);
         }
     }
 
+    /** Returns the products of a sale (reference only: the other fields are left empty). */
     public List<Product> getProductsFromSale(int saleId) {
         String sql = "SELECT product FROM sale_lines WHERE sale_id = ?";
         List<Product> products = new ArrayList<>();
@@ -332,7 +408,7 @@ public class SaleDAO {
                 }
             }
         } catch (SQLException e) {
-            //e.printStackTrace();
+            LOGGER.log(Level.WARNING, "Database operation failed.", e);
         }
         return products;
     }

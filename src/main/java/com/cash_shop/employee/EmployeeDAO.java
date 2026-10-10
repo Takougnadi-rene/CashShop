@@ -11,8 +11,28 @@ import com.cash_shop.common.DBConnection;
 import com.cash_shop.user.AccountCredentialGenerator;
 import com.cash_shop.user.AccountCredentials;
 
+/**
+ * Data access object for employees and their application accounts (tables {@code employees} and {@code
+ * users}).
+ */
 public class EmployeeDAO {
 
+    /** Returns the number of employees currently registered. */
+    public int getEmployeeCount() {
+        String sql = "SELECT COUNT(*) FROM employees";
+        try (Connection connection = DBConnection.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet results = statement.executeQuery()) {
+            if (!results.next()) {
+                throw new SQLException("Employee count query returned no result.");
+            }
+            return results.getInt(1);
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to count employees.", exception);
+        }
+    }
+
+    /** Returns every employee ordered by matricule. */
     public List<Employee> getAllEmployees() {
         List<Employee> employees = new ArrayList<>();
         String sql = "SELECT matricule, first_name, last_name, email, salary, role "
@@ -31,14 +51,19 @@ public class EmployeeDAO {
                         Employee.Role.valueOf(resultSet.getString("role").toUpperCase())));
             }
         } catch (SQLException exception) {
-            throw new IllegalStateException("Impossible de charger les employés.", exception);
+            throw new IllegalStateException("Unable to load employees.", exception);
         }
 
         return employees;
     }
 
+    /**
+     * Creates the employee and its application account in a single transaction, and returns the generated
+     * login and temporary password.
+     */
     public AccountCredentials insertEmployee(String matricule, String first_name, String last_name, String email, double salary,
             Employee.Role role) {
+        // Generate the login and the temporary password before opening the transaction.
         AccountCredentials generated = new AccountCredentials(AccountCredentialGenerator.createLogin(first_name,
                 last_name), AccountCredentialGenerator.createPassword());
         try (Connection connection = DBConnection.getConnection()) {
@@ -57,6 +82,8 @@ public class EmployeeDAO {
                     statement.executeUpdate();
                 }
 
+                // Create the matching application account (the login gets a numeric suffix when it is already
+                // used).
                 String login = findAvailableLogin(connection, generated.login());
                 String userSql = "INSERT INTO users (login, password_user, email) VALUES (?, ?, ?)";
                 try (PreparedStatement statement = connection.prepareStatement(userSql)) {
@@ -83,6 +110,7 @@ public class EmployeeDAO {
         }
     }
 
+    /** Returns the base login, or the base login followed by a number (2, 3...) when it is already taken. */
     private String findAvailableLogin(Connection connection, String baseLogin) throws SQLException {
         String login = baseLogin;
         int suffix = 2;
@@ -98,6 +126,7 @@ public class EmployeeDAO {
         }
     }
 
+    /** Updates the employee identified by its matricule. */
     public void updateEmployee(Employee emp) {
         String sql = "UPDATE employees SET first_name = ?, last_name = ?, email = ?, "
                 + "salary = ?, role = ? WHERE matricule = ?";
@@ -111,11 +140,13 @@ public class EmployeeDAO {
         });
     }
 
+    /** Deletes the employee and the matching application account in a single transaction. */
     public void deleteEmployee(String matricule) {
         try (Connection connection = DBConnection.getConnection()) {
             boolean originalAutoCommit = connection.getAutoCommit();
             connection.setAutoCommit(false);
             try {
+                // The application account is linked to the employee by e-mail: read it (and lock the row) first.
                 String email = null;
                 try (PreparedStatement statement = connection.prepareStatement(
                         "SELECT email FROM employees WHERE matricule = ? FOR UPDATE")) {
@@ -155,6 +186,7 @@ public class EmployeeDAO {
         }
     }
 
+    /** Prints a message saying whether the employee may open a cash register (cashiers only). */
     public void openCashRegister(Employee employee) {
         if (employee.getRole() == Employee.Role.CASHIER) {
             System.out.println("Cash register opened by " + employee.getFirstName() + " " + employee.getLastName());
@@ -163,6 +195,7 @@ public class EmployeeDAO {
         }
     }
 
+    /** Prints a message saying whether the employee may perform sales (cashiers and counter staff). */
     public void performSale(Employee employee) {
         if (employee.getRole() == Employee.Role.CASHIER || employee.getRole() == Employee.Role.COUNTER) {
             System.out.println("Sale performed by " + employee.getFirstName() + " " + employee.getLastName());
@@ -171,6 +204,7 @@ public class EmployeeDAO {
         }
     }
 
+    /** Prints a message saying whether the employee may process payments (cashiers only). */
     public void processPayment(Employee employee) {
         if (employee.getRole() == Employee.Role.CASHIER) {
             System.out.println("Payment processed by " + employee.getFirstName() + " " + employee.getLastName());
@@ -179,16 +213,18 @@ public class EmployeeDAO {
         }
     }
 
+    /** Runs an INSERT/UPDATE/DELETE statement after binding its parameters. */
     private void execute(String sql, StatementParameters parameters) {
         try (Connection connection = DBConnection.getConnection();
                 PreparedStatement statement = connection.prepareStatement(sql)) {
             parameters.set(statement);
             statement.executeUpdate();
         } catch (SQLException exception) {
-            throw new IllegalStateException("Impossible d'acceder a la base de donnees.", exception);
+            throw new IllegalStateException("Unable to access the database.", exception);
         }
     }
 
+    /** Callback that binds the parameters of a prepared statement. */
     @FunctionalInterface
     private interface StatementParameters {
         void set(PreparedStatement statement) throws SQLException;
