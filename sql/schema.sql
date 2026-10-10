@@ -160,7 +160,7 @@ CREATE TABLE IF NOT EXISTS supplier_orders (
         FOREIGN KEY (supplier_code) REFERENCES suppliers (code)
         ON DELETE SET NULL,
     CONSTRAINT chk_supplier_order_status CHECK (
-        status IN ('PENDING', 'APPROUVED', 'DENIDED', 'DELIVERED', 'COMPLETED')
+        status IN ('PENDING', 'APPROUVED', 'DENIDED', 'DELIVERED')
     ),
     CONSTRAINT chk_supplier_order_total CHECK (total_amount >= 0)
 ) ENGINE = InnoDB;
@@ -217,7 +217,7 @@ CREATE TABLE IF NOT EXISTS payments (
         ON DELETE CASCADE,
     CONSTRAINT chk_payment_amount CHECK (amount >= 0),
     CONSTRAINT chk_payment_mode CHECK (
-        payment_mode IN ('CASH', 'CREDIT_CARD', 'CARD', 'MOBILE_PAYMENT', 'MOBILE_MONEY')
+        payment_mode IN ('CASH', 'CREDIT_CARD', 'MOBILE_MONEY')
     )
 ) ENGINE = InnoDB;
 
