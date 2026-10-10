@@ -14,8 +14,8 @@ public class DBConnection {
     // do not have to live in the source code (the defaults keep the current behavior).
     
     //private static final String URL = "jdbc:mysql://vmnar-102-22-134-50.run.pinggy-free.link:37509/cash_shop";
-    //private static final String URL = "jdbc:mysql://localhost:3306/cash_shop";
-    private static final String URL = env("CASH_SHOP_DB_URL", "jdbc:mysql://100.117.167.116:3306/cash_shop");
+    private static final String URL = "jdbc:mysql://localhost:3306/cash_shop";
+    //private static final String URL = env("CASH_SHOP_DB_URL", "jdbc:mysql://100.117.167.116:3306/cash_shop");
     private static final String USER = env("CASH_SHOP_DB_USER", "linux");
     private static final String PASSWORD = env("CASH_SHOP_DB_PASSWORD", "kingbrain@2.0");
 
